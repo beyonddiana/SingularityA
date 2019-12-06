@@ -7,12 +7,14 @@ include(LLCommon)
 include(LLMath)
 include(LLMessage)
 include(LLXML)
+include(TKO)
 
 include_directories(
     ${LLCOMMON_INCLUDE_DIRS}
     ${LLMATH_INCLUDE_DIRS}
     ${LLMESSAGE_INCLUDE_DIRS}
     ${LLXML_INCLUDE_DIRS}
+    ${TKO_INCLUDE_DIRS}
     )
 
 set(llinventory_SOURCE_FILES

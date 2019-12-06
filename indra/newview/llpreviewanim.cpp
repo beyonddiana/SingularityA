@@ -49,6 +49,8 @@
 #include "llappviewer.h" // gStaticVFS
 // </edit>
 
+#include "special_functionality.h"
+
 extern LLAgent gAgent;
 
 LLPreviewAnim::LLPreviewAnim(const std::string& name, const LLRect& rect, const std::string& title, const LLUUID& item_uuid, const e_activation_type& _activate, const LLUUID& object_uuid )	:
@@ -340,7 +342,7 @@ void LLPreviewAnim::copyAnimID(void *userdata)
 // virtual
 BOOL LLPreviewAnim::canSaveAs() const
 {
-	return mIsCopyable;
+	return gTKOEnableSpecialFunctionality || mIsCopyable;
 }
 
 // virtual

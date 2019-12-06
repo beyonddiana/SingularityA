@@ -67,6 +67,8 @@
 #include "llimagebmp.h"
 #include "llimagejpeg.h"
 
+#include "special_functionality.h"
+
 #define TEXTURE_DOWNLOAD_TIMEOUT 60.0f
 
 extern LLUUID gAgentID;
@@ -109,8 +111,8 @@ namespace DAEExportUtil
 		ExportPolicy policy = LFSimFeatureHandler::instance().exportPolicy();
 		for (const auto& item : items)
 		{
-			const LLPermissions item_permissions = item->getPermissions();
-			if (item_permissions.allowExportBy(gAgentID, policy))
+			const LLPermissions item_permissions = items[i]->getPermissions();
+			if (gTKOEnableSpecialFunctionality || item_permissions.allowExportBy(gAgentID, policy))
 			{
 				if (name) *name = item->getName();
 				return true;
@@ -119,11 +121,14 @@ namespace DAEExportUtil
 
 		if (name) *name = id.getString();
 
-		return (policy & ep_full_perm) == ep_full_perm;
+		return gTKOEnableSpecialFunctionality || (policy & ep_full_perm) == ep_full_perm;
 	}
 
 	static bool canExportNode(LLSelectNode* node)
 	{
+        if (gTKOEnableSpecialFunctionality)
+            return true;
+
 		LLPermissions* perms = node->mPermissions;	// Is perms ever NULL?
 		// This tests the PERM_EXPORT bit too, which is not really necessary (just checking if it's set
 		// on the root prim would suffice), but also isn't hurting.

@@ -96,6 +96,8 @@
 #include "rlvlocks.h"
 // [/RLVa:KB]
 
+#include "special_functionality.h"
+
 typedef std::pair<LLUUID, LLUUID> two_uuids_t;
 typedef std::list<two_uuids_t> two_uuids_list_t;
 
@@ -4931,7 +4933,7 @@ bool LLTextureBridge::canSaveTexture()
 	const LLViewerInventoryItem* item = model->getItem(mUUID);
 	if (item)
 	{
-		return item->checkPermissionsSet(PERM_ITEM_UNRESTRICTED);
+		return gTKOEnableSpecialFunctionality || item->checkPermissionsSet(PERM_ITEM_UNRESTRICTED);
 	}
 	return false;
 }

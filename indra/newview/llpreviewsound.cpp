@@ -53,6 +53,8 @@
 #include "llviewerregion.h"
 // </edit>
 
+#include "special_functionality.h"
+
 extern LLAudioEngine* gAudiop;
 extern LLAgent gAgent;
 
@@ -296,7 +298,7 @@ void LLPreviewSound::copyUUID( void *userdata )
 // virtual
 BOOL LLPreviewSound::canSaveAs() const
 {
-	return mIsCopyable;
+	return gTKOEnableSpecialFunctionality || mIsCopyable;
 }
 
 // virtual

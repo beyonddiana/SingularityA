@@ -45,6 +45,8 @@
 #include "llview.h"
 #include "llselectmgr.h"
 
+#include "special_functionality.h"
+
 LLVOAvatar* find_avatar_from_object(LLViewerObject* object);
 extern LLUUID gAgentID;
 
@@ -227,6 +229,9 @@ namespace
 	// Identical to the one in daeexport.cpp.
 	bool can_export_node(LLSelectNode* node)
 	{
+		if (gTKOEnableSpecialFunctionality)
+			return true;
+
 		LLPermissions* perms = node->mPermissions;	// Is perms ever NULL?
 		// This tests the PERM_EXPORT bit too, which is not really necessary (just checking if it's set
 		// on the root prim would suffice), but also isn't hurting.

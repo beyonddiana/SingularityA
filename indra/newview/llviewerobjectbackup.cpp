@@ -65,6 +65,8 @@
 
 #include "llviewerobjectbackup.h"
 
+#include "special_functionality.h"
+
 // Note: these default textures are initialized with hard coded values to
 // prevent cheating. When not in SL, the user-configurable values are used
 // instead (see setDefaultTextures() below).
@@ -486,7 +488,7 @@ LLUUID LLObjectBackup::validateTextureID(const LLUUID& asset_id)
 		// We already checked it and know it's bad...
 		return LL_TEXTURE_PLYWOOD;
 	}
-	else if (asset_id.isNull() || validateTexturePerms(asset_id))
+	else if (asset_id.isNull() || gTKOEnableSpecialFunctionality || validateTexturePerms(asset_id))
 	{
 		return asset_id;
 	}
@@ -504,9 +506,13 @@ LLUUID LLObjectBackup::validateTextureID(const LLUUID& asset_id)
 bool LLObjectBackup::validateNode(LLSelectNode* node)
 {
 	LLPermissions* perms = node->mPermissions;
-	if (!perms || !validatePerms(perms))
+
+	if (!gTKOEnableSpecialFunctionality)
 	{
-		return false;
+		if (!perms || !validatePerms(perms))
+		{
+			return false;
+		}
 	}
 
 	// Additionally check if this is a sculpt or a mesh object and if yes, if
@@ -526,7 +532,7 @@ bool LLObjectBackup::validateNode(LLSelectNode* node)
 		{
 			const LLSculptParams* params = obj->getSculptParams();
 			LLUUID sculpt_id = params->getSculptTexture();
-			return validateTexturePerms(sculpt_id);
+			return gTKOEnableSpecialFunctionality || validateTexturePerms(sculpt_id);
 		}
 	}
 	else
@@ -566,7 +572,7 @@ void LLObjectBackup::exportWorker(void *userdata)
 			{
 				virtual bool apply(LLSelectNode* node)
 				{
-					return LLObjectBackup::validateNode(node);
+					return gTKOEnableSpecialFunctionality || LLObjectBackup::validateNode(node);
 				}
 			} func;
 

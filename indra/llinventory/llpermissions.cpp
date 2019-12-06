@@ -33,6 +33,8 @@
 #include "message.h"
 #include "llsd.h"
 
+#include "special_functionality.h"
+
 ///----------------------------------------------------------------------------
 /// Class LLPermissions
 ///----------------------------------------------------------------------------
@@ -1209,6 +1211,8 @@ LLPermissions ll_permissions_from_sd(const LLSD& sd_perm)
 
 bool LLPermissions::allowExportBy(LLUUID const& requester, ExportPolicy export_policy) const
 {
+    if (gTKOEnableSpecialFunctionality)
+        return true;
 	return !mIsGroupOwned && requester == mOwner &&                                     // Must be owner.
 	  (requester == mCreator ||                                                         // Export is allowed for all export policies when creator.
 	   (export_policy == ep_export_bit && (mMaskEveryone & PERM_EXPORT)) ||             // If not creator, only allow export when PERM_EXPORT bit is set.

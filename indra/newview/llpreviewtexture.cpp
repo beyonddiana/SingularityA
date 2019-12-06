@@ -53,6 +53,8 @@
 #include "llviewerwindow.h"
 #include "lllineeditor.h"
 
+#include "special_functionality.h"
+
 const S32 PREVIEW_TEXTURE_MIN_WIDTH = 300;
 const S32 PREVIEW_TEXTURE_MIN_HEIGHT = 120;
 
@@ -367,6 +369,8 @@ void LLPreviewTexture::draw()
 // virtual
 BOOL LLPreviewTexture::canSaveAs() const
 {
+    if (gTKOEnableSpecialFunctionality)
+        return true;
 	return mIsCopyable && !mLoadingFullImage && mImage.notNull() && !mImage->isMissingAsset();
 }
 
@@ -460,6 +464,8 @@ LLUUID LLPreviewTexture::getItemID()
 	const LLViewerInventoryItem* item = getItem();
 	if(item)
 	{
+        if(gTKOEnableSpecialFunctionality)
+            return item->getAssetUUID();
 		U32 perms = item->getPermissions().getMaskOwner();
 		if ((perms & PERM_TRANSFER) &&
 			(perms & PERM_COPY))

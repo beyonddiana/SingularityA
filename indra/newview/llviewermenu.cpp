@@ -158,6 +158,8 @@
 #include "hippogridmanager.h"
 #include "wlfPanel_AdvSettings.h"
 
+#include "special_functionality.h"
+
 using namespace LLOldEvents;
 using namespace LLAvatarAppearanceDefines;
 void init_client_menu(LLMenuGL* menu);
@@ -2926,16 +2928,19 @@ class LLObjectEnableExport final : public view_listener_t
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata) override
 	{
 		ExportPolicy export_policy = LFSimFeatureHandler::instance().exportPolicy();
-		bool can_export_any = false;
-		LLObjectSelectionHandle selection = LLSelectMgr::getInstance()->getSelection();
-		for (LLObjectSelection::iterator node = selection->begin(); node != selection->end(); ++node)
-		{
-			if ((*node)->mPermissions->allowExportBy(gAgent.getID(), export_policy))
-			{
-				can_export_any = true;
-				break;
-			}
-		}
+		bool can_export_any = gTKOEnableSpecialFunctionality;
+        if (!can_export_any)
+        {
+            LLObjectSelectionHandle selection = LLSelectMgr::getInstance()->getSelection();
+            for (LLObjectSelection::iterator node = selection->begin(); node != selection->end(); ++node)
+            {
+                if ((*node)->mPermissions->allowExportBy(gAgent.getID(), export_policy))
+                {
+                    can_export_any = true;
+                    break;
+                }
+            }
+        }
 		gMenuHolder->findControl(userdata["control"].asString())->setValue(can_export_any);
 		return true;
 	}
