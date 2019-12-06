@@ -43,6 +43,7 @@
 #include "lleditmenuhandler.h"
 
 #include "llpreeditor.h"
+#include "lfidbearer.h"
 
 class LLFontGL;
 class LLKeywordToken;
@@ -50,6 +51,7 @@ class LLMenuGL;
 class LLTextCmd;
 
 class LLTextEditor : public LLUICtrl, LLEditMenuHandler, protected LLPreeditor
+, public LFIDBearer
 {
 public:
 	//
@@ -71,16 +73,12 @@ public:
 
 	const std::string& getMenuSegmentUrl() const;
 
+	LLUUID getStringUUIDSelectedItem() const override final;
+	Type getSelectedType() const override final;
+
 	typedef boost::signals2::signal<void (LLTextEditor* caller)> keystroke_signal_t;
-	typedef boost::signals2::signal<bool(const LLUUID& user_id)> is_friend_signal_t;
-	typedef boost::signals2::signal<bool(const LLUUID& blocked_id, const std::string from)> is_blocked_signal_t;
 
-	static boost::signals2::connection setIsFriendCallback(const is_friend_signal_t::slot_type& cb);
-	static boost::signals2::connection setIsObjectBlockedCallback(const is_blocked_signal_t::slot_type& cb);
-
-	typedef std::function<void(const std::string&, const LLUUID&)> ext_slurl_cb;
-	typedef std::function<bool(const std::string&, const LLUUID&)> ext_slurl_visible_cb;
-	static void addMenuListeners(ext_slurl_cb cb, ext_slurl_visible_cb vcb);
+	static void addMenuListeners();
 
 	void	setKeystrokeCallback(const keystroke_signal_t::slot_type& callback);
 
@@ -467,10 +465,6 @@ protected:
 	BOOL			mTakesNonScrollClicks;
 	void			(*mOnScrollEndCallback)(void*);
 	void			*mOnScrollEndData;
-
-	// Used to check if user with given ID is avatar's friend
-	static is_friend_signal_t*         mIsFriendSignal;
-	static is_blocked_signal_t*        mIsObjectBlockedSignal;
 
 	LLWString			mPreeditWString;
 	LLWString			mPreeditOverwrittenWString;

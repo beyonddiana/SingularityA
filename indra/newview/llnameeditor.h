@@ -36,7 +36,7 @@
 #include "lllineeditor.h"
 #include "llnameui.h"
 
-class LLNameEditor
+class LLNameEditor final
 :	public LLLineEditor
 ,	public LLNameUI
 {
@@ -47,6 +47,7 @@ public:
 		bool is_group = false,
 		const std::string& loading = LLStringUtil::null,
 		bool rlv_sensitive = false,
+		const std::string& name_system = LLStringUtil::null,
 		bool click_for_profile = true,
 		const LLFontGL* glfont = nullptr,
 		S32 max_text_length = 254);

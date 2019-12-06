@@ -63,7 +63,6 @@ private:
 	bool mAnnounceSnapshots;
 	bool mAnnounceStreamMetadata;
 	F32 mInactiveFloaterTransparency, mActiveFloaterTransparency;
-	bool mCompleteNameProfiles;
 	bool mScriptErrorsStealFocus;
 	bool mConnectToNeighbors;
 	bool mRestartMinimized;

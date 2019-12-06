@@ -1130,7 +1130,7 @@ BOOL LLFavoritesBarCtrl::handleRightMouseDown(S32 x, S32 y, MASK mask)
 		show_navbar_context_menu(this,x,y);
 		handled = true;
 	}*/
-	
+
 	return handled;
 }
 void copy_slurl_to_clipboard_cb(std::string& slurl)

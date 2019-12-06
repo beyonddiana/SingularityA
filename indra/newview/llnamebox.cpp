@@ -37,11 +37,21 @@
 
 static LLRegisterWidget<LLNameBox> r("name_box");
 
-LLNameBox::LLNameBox(const std::string& name)
-: LLNameUI()
+LLNameBox::LLNameBox(const std::string& name,
+	const LLUUID& name_id,
+	bool is_group,
+	const std::string& loading,
+	bool rlv_sensitive,
+	const std::string& name_system)
+: LLNameUI(loading, rlv_sensitive, name_id, is_group, name_system)
 , LLTextBox(name, LLRect(), LLStringUtil::null, nullptr, TRUE)
 {
 	setClickedCallback(boost::bind(&LLNameUI::showProfile, this));
+	if (!name_id.isNull())
+	{
+		setNameID(name_id, is_group);
+	}
+	else setText(mInitialValue);
 }
 
 void LLNameBox::displayAsLink(bool link)
@@ -57,10 +67,9 @@ BOOL LLNameBox::handleRightMouseDown(S32 x, S32 y, MASK mask)
 	auto handled = LLTextBox::handleRightMouseDown(x, y, mask);
 	if (mAllowInteract && !handled)
 	{
-		// Singu TODO: Generic menus for groups
-		if (!mIsGroup && mNameID.notNull())
+		if (mNameID.notNull())
 		{
-			showMenu(this, sMenus[0], x, y);
+			showMenu(this, sMenus[getSelectedType()], x, y);
 			handled = true;
 		}
 	}
@@ -80,24 +89,33 @@ BOOL LLNameBox::handleHover(S32 x, S32 y, MASK mask)
 }
 
 // virtual
-void LLNameBox::initFromXML(LLXMLNodePtr node, LLView* parent)
+LLXMLNodePtr LLNameBox::getXML(bool save_children) const
 {
-	LLTextBox::initFromXML(node, parent);
-	node->getAttributeString("initial_value", mInitialValue);
-	setText(mInitialValue);
-	node->getAttribute_bool("rlv_sensitive", mRLVSensitive);
-	if (node->hasAttribute("is_group"))
-	{
-		bool is_group;
-		node->getAttribute_bool("is_group", is_group);
-		setIsGroup(is_group);
-	}
+	LLXMLNodePtr node = LLTextBox::getXML();
+
+	node->setName("name_box");
+	node->createChild("initial_value", TRUE)->setStringValue(mInitialValue);
+	node->createChild("rlv_sensitive", TRUE)->setBoolValue(mRLVSensitive);
+	node->createChild("name_system", TRUE)->setStringValue(mNameSystem);
+
+	return node;
 }
 
 // static
 LLView* LLNameBox::fromXML(LLXMLNodePtr node, LLView *parent, LLUICtrlFactory *factory)
 {
-	LLNameBox* name_box = new LLNameBox("name_box");
+	bool is_group = false;
+	node->getAttribute_bool("is_group", is_group);
+	LLUUID id;
+	node->getAttributeUUID("id", id);
+	std::string loading;
+	node->getAttributeString("initial_value", loading);
+	bool rlv_sensitive = false;
+	node->getAttribute_bool("rlv_sensitive", rlv_sensitive);
+	std::string name_system;
+	node->getAttributeString("name_system", name_system);
+	LLNameBox* name_box = new LLNameBox("name_box", id, is_group, loading, rlv_sensitive, name_system);
 	name_box->initFromXML(node,parent);
+
 	return name_box;
 }

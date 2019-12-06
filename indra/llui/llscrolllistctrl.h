@@ -254,9 +254,18 @@ public:
 	bool			filterItem(LLScrollListItem* item);
 	void			setFilter(const std::string& filter);
 
-	// support right-click context menus for avatar/group lists
+	// Context Menus
 	void setContextMenu(LLMenuGL* menu) { mPopupMenu = menu; }
-	void setContextMenu(S32 index) { mPopupMenu = sMenus[index]; }
+	void setContextMenu(U8 index) { mPopupMenu = sMenus[index]; }
+	void setContextMenu(const std::string& menu);
+
+	Type getSelectedType() const override
+	{
+		for (auto i = 0; mPopupMenu && i < COUNT; ++i)
+			if (sMenus[i] == mPopupMenu)
+				return (Type)i;
+		return LFIDBearer::getSelectedType();
+	}
 
 	// Overridden from LLView
 	/*virtual*/ void    draw();

@@ -53,6 +53,8 @@ static LLPanelInjector<LLPanelMarketplaceListings> t_panel_status("llpanelmarket
 
 LLPanelMarketplaceListings::LLPanelMarketplaceListings()
 : mRootFolder(NULL)
+, mAuditBtn(nullptr)
+, mFilterEditor(nullptr)
 , mSortOrder(LLInventoryFilter::SO_FOLDERS_BY_NAME)
 , mFilterListingFoldersOnly(false)
 {

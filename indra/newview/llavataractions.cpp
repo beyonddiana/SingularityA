@@ -374,8 +374,8 @@ void LLAvatarActions::showProfile(const LLUUID& id, bool web)
 // static
 void LLAvatarActions::showProfiles(const uuid_vec_t& ids, bool web)
 {
-	for (uuid_vec_t::const_iterator it = ids.begin(); it != ids.end(); ++it)
-		showProfile(*it, web);
+	for (const auto& id : ids)
+		showProfile(id, web);
 }
 
 //static
@@ -1245,25 +1245,29 @@ bool LLAvatarActions::isAgentMappable(const LLUUID& agent_id)
 			);
 }
 
-// static
-void LLAvatarActions::copyUUIDs(const uuid_vec_t& ids)
+void copy_from_ids(const uuid_vec_t& ids, std::function<std::string(const LLUUID&)> func)
 {
 	std::string ids_string;
 	const std::string& separator = LLTrans::getString("words_separator");
-	for (uuid_vec_t::const_iterator it = ids.begin(); it != ids.end(); ++it)
+	for (const auto& id : ids)
 	{
-		const LLUUID& id = *it;
 		if (id.isNull())
 			continue;
 
 		if (!ids_string.empty())
 			ids_string.append(separator);
 
-		ids_string.append(id.asString());
+		ids_string.append(func(id));
 	}
 
 	if (!ids_string.empty())
 		gViewerWindow->getWindow()->copyTextToClipboard(utf8str_to_wstring(ids_string));
+}
+
+// static
+void LLAvatarActions::copyUUIDs(const uuid_vec_t& ids)
+{
+	copy_from_ids(ids, [](const LLUUID& id) { return id.asString(); });
 }
 
 std::string LLAvatarActions::getSLURL(const LLUUID& id)

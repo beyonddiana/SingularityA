@@ -39,7 +39,7 @@ class LLAvatarName;
  * We don't use LLScrollListItem to be able to override getUUID(), which is needed
  * because the name list item value is not simply an UUID but a map (uuid, is_group).
  */
-class LLNameListItem : public LLScrollListItem, public LLHandleProvider<LLNameListItem>
+class LLNameListItem final : public LLScrollListItem, public LLHandleProvider<LLNameListItem>
 {
 public:
 	enum ENameType
@@ -86,7 +86,7 @@ private:
 };
 
 
-class LLNameListCtrl
+class LLNameListCtrl final
 :	public LLScrollListCtrl, public LLInstanceTracker<LLNameListCtrl>
 {
 public:
@@ -148,6 +148,8 @@ public:
 									  EAcceptance *accept,
 									  std::string& tooltip_msg);
 	BOOL handleDoubleClick(S32 x, S32 y, MASK mask) override;
+
+	Type getSelectedType() const override final;
 
 	void setAllowCallingCardDrop(BOOL b) { mAllowCallingCardDrop = b; }
 

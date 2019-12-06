@@ -91,6 +91,7 @@ private:
 	S32 mFriendNames;
 	S32 mGroupMembersNames;
 	S32 mLandManagementNames;
+	S32 mProfileNames;
 	S32 mRadarNames;
 	S32 mSpeakerNames;
 

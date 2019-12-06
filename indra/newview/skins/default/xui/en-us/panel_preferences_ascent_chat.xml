@@ -85,6 +85,13 @@
         <combo_item name="Display Names only" value="2">Display Names only</combo_item>
         <combo_item name="Old Names (with Display Names)" value="3">Old Names (w/Display)</combo_item>
       </combo_box>
+      <text bottom_delta="-18" left="20" follows="top" name="profile_namesystem_text_box">Profiles:</text>
+      <combo_box bottom_delta="-5" left_delta="140" follows="top" height="18" control_name="ProfileNameSystem" name="profile_namesystem_combobox" width="130">
+        <combo_item name="Old Names" value="0">Old Names</combo_item>
+        <combo_item name="Display Names (with Username)" value="1">Display Names (w/Username)</combo_item>
+        <combo_item name="Display Names only" value="2">Display Names only</combo_item>
+        <combo_item name="Old Names (with Display Names)" value="3">Old Names (w/Display)</combo_item>
+      </combo_box>
       <text bottom_delta="-18" left="20" follows="top" name="radar_namesystem_text_box">Radar:</text>
       <combo_box bottom_delta="-5" left_delta="140" follows="top" height="18" control_name="RadarNameSystem" name="radar_namesystem_combobox" width="130">
         <combo_item name="Old Names" value="0">Old Names</combo_item>

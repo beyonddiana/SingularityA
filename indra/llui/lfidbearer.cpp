@@ -20,9 +20,32 @@
 #include "linden_common.h"
 #include "lfidbearer.h"
 #include "llmenugl.h"
+#include "lluictrlfactory.h"
 
-std::vector<LLMenuGL*> LFIDBearer::sMenus = {};
+const std::array<const std::string, LFIDBearer::COUNT> LFIDBearer::sMenuStrings
+{
+	"menu_avs_list.xml" // 0
+,	"menu_groups_list.xml" // 1
+,	"menu_objects_list.xml" // 2 // Singu TODO
+};
+std::array<LLMenuGL*, LFIDBearer::COUNT> LFIDBearer::sMenus {};
+
 LFIDBearer* LFIDBearer::sActive = nullptr;
+
+void LFIDBearer::buildMenus()
+{
+	auto& factory = LLUICtrlFactory::instance();
+	for (auto i = 0; i < COUNT; ++i)
+		sMenus[i] = factory.buildMenu(sMenuStrings[i], LLMenuGL::sMenuContainer);
+}
+
+LLMenuGL* LFIDBearer::showMenu(LLView* self, const std::string& menu_name, S32 x, S32 y, std::function<void(LLMenuGL*)> on_menu_built)
+{
+	auto menu = LLUICtrlFactory::instance().buildMenu(menu_name, LLMenuGL::sMenuContainer);
+	if (on_menu_built) on_menu_built(menu);
+	showMenu(self, menu, x, y);
+	return menu;
+}
 
 void LFIDBearer::showMenu(LLView* self, LLMenuGL* menu, S32 x, S32 y)
 {

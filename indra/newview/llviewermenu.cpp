@@ -94,6 +94,7 @@
 #include "llframestats.h"
 #include "llavataractions.h"
 #include "llgivemoney.h"
+#include "llgroupactions.h"
 #include "llgroupmgr.h"
 #include "llhoverview.h"
 #include "llhudeffecttrail.h"
@@ -750,8 +751,7 @@ void init_menus()
 	gMenuHolder->addChild(gLoginMenuBarView);
 
 	// Singu Note: Initialize common ScrollListMenus here
-	LFIDBearer::addCommonMenu(LLUICtrlFactory::getInstance()->buildMenu("menu_avs_list.xml", gMenuHolder)); // 0
-	//LFIDBearer::addCommonMenu(LLUICtrlFactory::getInstance()->buildMenu("menu_groups_list.xml")); // 1 // Singu TODO
+	LFIDBearer::buildMenus();
 
 	LLView* ins = gMenuBarView->getChildView("insert_world", true, false);
 	ins->setVisible(false);
@@ -9039,16 +9039,19 @@ template<typename T> T* get_focused()
 	return t;
 }
 
-const LLWString get_slurl_for(const LLUUID& id, bool group)
+const std::string get_slurl_for(const LLUUID& id, LFIDBearer::Type type)
 {
-	std::string str("secondlife:///app/");
-	str += group ? "group/" : "agent/";
-	return utf8str_to_wstring(str + id.asString() + "/about");
+	return type == LFIDBearer::GROUP ? LLGroupActions::getSLURL(id) : LLAvatarActions::getSLURL(id);
 }
 
-void copy_profile_uri(const LLUUID& id, bool group)
+const LLWString get_wslurl_for(const LLUUID& id, LFIDBearer::Type type)
 {
-	gViewerWindow->getWindow()->copyTextToClipboard(get_slurl_for(id, group));
+	return utf8str_to_wstring(get_slurl_for(id, type));
+}
+
+void copy_profile_uri(const LLUUID& id, LFIDBearer::Type type)
+{
+	gViewerWindow->getWindow()->copyTextToClipboard(get_wslurl_for(id, type));
 }
 
 class ListEnableAnySelected : public view_listener_t
@@ -9105,15 +9108,39 @@ class ListEnableIsNotFriend : public view_listener_t
 	}
 };
 
+class ListEnableUnmute : public view_listener_t
+{
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
+	{
+		bool are_blocked = false;
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+			if (are_blocked = LLAvatarActions::isBlocked(id)) // If any are blocked, allow unblocking
+				break;
+
+		gMenuHolder->findControl(userdata["control"].asString())->setValue(are_blocked);
+		return true;
+	}
+};
+
 class ListEnableMute : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		const uuid_vec_t& ids = LFIDBearer::getActiveSelectedIDs();
-		bool can_block = true;
-		for (uuid_vec_t::const_iterator it = ids.begin(); can_block && it != ids.end(); ++it)
-			can_block = LLAvatarActions::canBlock(*it);
-		gMenuHolder->findControl(userdata["control"].asString())->setValue(can_block);
+		bool blockable = false;
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+		{
+			if (!LLAvatarActions::canBlock(id)) // Exit early only when someone is unblockable
+			{
+				blockable = false;
+				break;
+			}
+			else if (blockable) // At least one is unblocked, keep looking for unblockables
+				continue;
+
+			blockable = !LLAvatarActions::isBlocked(id);
+		}
+
+		gMenuHolder->findControl(userdata["control"].asString())->setValue(blockable);
 		return true;
 	}
 };
@@ -9146,11 +9173,37 @@ class ListBanFromGroup : public view_listener_t
 	}
 };
 
+void copy_from_ids(const uuid_vec_t & ids, std::function<std::string(const LLUUID&)> func);
+
+class ListCopyNames : public view_listener_t
+{
+	static std::string getGroupName(const LLUUID& id)
+	{
+		std::string ret;
+		gCacheName->getGroupName(id, ret);
+		return ret;
+	}
+
+	static std::string getAvatarName(const LLUUID& id)
+	{
+		std::string ret;
+		LLAvatarNameCache::getNSName(id, ret);
+		return ret;
+	}
+
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
+	{
+		LLWString str;
+		copy_from_ids(LFIDBearer::getActiveSelectedIDs(), LFIDBearer::getActiveType() == LFIDBearer::GROUP ? getGroupName : getAvatarName);
+		if (!str.empty()) LLView::getWindow()->copyTextToClipboard(str);
+		return true;
+	}
+};
 class ListCopySLURL : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		copy_profile_uri(LFIDBearer::getActiveSelectedID(), false);
+		copy_profile_uri(LFIDBearer::getActiveSelectedID(), LFIDBearer::getActiveType());
 		return true;
 	}
 };
@@ -9247,7 +9300,12 @@ class ListShowProfile : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		LLAvatarActions::showProfiles(LFIDBearer::getActiveSelectedIDs());
+		switch (LFIDBearer::getActiveType())
+		{
+		case LFIDBearer::AVATAR: LLAvatarActions::showProfiles(LFIDBearer::getActiveSelectedIDs()); break;
+		case LFIDBearer::GROUP: LLGroupActions::showProfiles(LFIDBearer::getActiveSelectedIDs()); break;
+		default: break;
+		}
 		return true;
 	}
 };
@@ -9274,7 +9332,7 @@ class ListStartCall : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		LLAvatarActions::startCall(LFIDBearer::getActiveSelectedID());
+		(LFIDBearer::getActiveType() == LFIDBearer::GROUP ? LLGroupActions::startCall : LLAvatarActions::startCall)(LFIDBearer::getActiveSelectedID());
 		return true;
 	}
 };
@@ -9292,7 +9350,9 @@ class ListStartIM : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		LLAvatarActions::startIM(LFIDBearer::getActiveSelectedID());
+		const auto&& im = LFIDBearer::getActiveType() == LFIDBearer::GROUP ? [](const LLUUID& id) { LLGroupActions::startIM(id); } : LLAvatarActions::startIM;
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+			im(id);
 		return true;
 	}
 };
@@ -9428,64 +9488,65 @@ class ListToggleMute : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		const uuid_vec_t& ids = LFIDBearer::getActiveSelectedIDs();
-		for (const auto& id : ids)
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
 			LLAvatarActions::toggleBlock(id);
 		return true;
 	}
 };
 
-struct MenuSLURLDict : public LLSingleton<MenuSLURLDict>
+class ListIsInGroup : public view_listener_t
 {
-	typedef std::function<void (const LLUUID&)> cb;
-	typedef std::function<bool (const LLUUID&)> vcb;
-	typedef std::map<std::string, std::pair<cb, vcb>> slurl_menu_map;
-	slurl_menu_map mEntries;
-	MenuSLURLDict()
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		// Text Editor menus
-		LLTextEditor::setIsObjectBlockedCallback(boost::bind(&LLMuteList::isMuted, LLMuteList::getInstance(), _1, _2, 0));
-		LLTextEditor::setIsFriendCallback(LLAvatarActions::isFriend);
-		LLTextEditor::addMenuListeners(boost::bind(&MenuSLURLDict::action, this, _1, _2), boost::bind(&MenuSLURLDict::visible, this, _1, _2));
-
-		// Add the entries
-		insert("ShowWebProfile", boost::bind(LLAvatarActions::showProfile, _1, true), boost::bind(can_show_web_profile));
-		insert("Pay", LLAvatarActions::pay);
-		insert("Call", LLAvatarActions::startCall);
-		insert("Share", LLAvatarActions::share);
-		insert("AbuseReport", LLFloaterReporter::showFromObject);
-		insert("InviteToGroup", [](const LLUUID& id) { LLAvatarActions::inviteToGroup(id); });
-		insert("BanFromGroup", [](const LLUUID& id) { ban_from_group(uuid_vec_t(1, id)); });
-		insert("ShowLog", [](const LLUUID& id) { show_log_browser(id); });
-		insert("OfferTeleport", [](const LLUUID& id) { LLAvatarActions::offerTeleport(id); }, [](const LLUUID& id) { return LLAvatarActions::canOfferTeleport(id); });
-		insert("RequestTeleport", LLAvatarActions::teleportRequest);
-		void teleport_to(const LLUUID& id);
-		insert("TeleportTo", teleport_to, is_nearby);
-		insert("Track", track_av, is_nearby);
-		insert("Focus", LLFloaterAvatarList::setFocusAvatar, is_nearby);
-		insert("ParcelEject", [](const LLUUID& id) { confirm_eject(uuid_vec_t(1, id)); }, is_nearby);
-		insert("Freeze", [](const LLUUID& id) { confirm_freeze(uuid_vec_t(1, id)); }, is_nearby);
-		insert("EstateBan", [](const LLUUID& id) { confirm_estate_ban(uuid_vec_t(1, id)); }, is_nearby);
-		insert("EstateEject", [](const LLUUID & id) { confirm_estate_kick(uuid_vec_t(1, id)); }, is_nearby);
-		insert("Mute", LLAvatarActions::toggleBlock, [](const LLUUID& id) { return LLAvatarActions::canBlock(id) && !LLAvatarActions::isBlocked(id); });
-		insert("Unmute", LLAvatarActions::toggleBlock, LLAvatarActions::isBlocked);
+		auto in_group = false;
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+			if (!(in_group = LLGroupActions::isInGroup(id)))
+				break;
+		gMenuHolder->findControl(userdata["control"].asString())->setValue(in_group);
+		return true;
 	}
+};
 
-	void insert(const std::string& key, cb callback, vcb vcallback = nullptr)
+class ListNotInGroup : public view_listener_t
+{
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		mEntries[key] = std::make_pair(callback, vcallback);
+		auto in_group = true;
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+			if (in_group = LLGroupActions::isInGroup(id))
+				break;
+		gMenuHolder->findControl(userdata["control"].asString())->setValue(!in_group);
+		return true;
 	}
+};
 
-	void action(const std::string& cmd, LLUUID id) const
+class ListLeave : public view_listener_t
+{
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		auto it = mEntries.find(cmd);
-		if (it != mEntries.end())
-			(*it).second.first(id);
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+			LLGroupActions::leave(id);
+		return true;
 	}
-	bool visible(const std::string& cmd, LLUUID id) const
+};
+
+class ListJoin : public view_listener_t
+{
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
 	{
-		auto it = mEntries.find(cmd);
-		return it == mEntries.end() || !(*it).second.second || (*it).second.second(id);
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+			LLGroupActions::join(id);
+		return true;
+	}
+};
+
+class ListActivate : public view_listener_t
+{
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata)
+	{
+		for (const auto& id : LFIDBearer::getActiveSelectedIDs())
+			LLGroupActions::activate(id);
+		return true;
 	}
 };
 
@@ -9842,10 +9903,12 @@ void initialize_menus()
 	addMenu(new ListEnableCall(), "List.EnableCall");
 	addMenu(new ListEnableIsFriend(), "List.EnableIsFriend");
 	addMenu(new ListEnableIsNotFriend(), "List.EnableIsNotFriend");
+	addMenu(new ListEnableUnmute(), "List.EnableUnmute");
 	addMenu(new ListEnableMute(), "List.EnableMute");
 	addMenu(new ListEnableOfferTeleport(), "List.EnableOfferTeleport");
 	addMenu(new ListVisibleWebProfile(), "List.VisibleWebProfile");
 	addMenu(new ListBanFromGroup(), "List.BanFromGroup");
+	addMenu(new ListCopyNames(), "List.CopyNames");
 	addMenu(new ListCopySLURL(), "List.CopySLURL");
 	addMenu(new ListCopyUUIDs(), "List.CopyUUIDs");
 	addMenu(new ListInviteToGroup(), "List.InviteToGroup");
@@ -9870,10 +9933,15 @@ void initialize_menus()
 	addMenu(new ListEstateBan(), "List.EstateBan");
 	addMenu(new ListEstateEject(), "List.EstateEject");
 	addMenu(new ListToggleMute(), "List.ToggleMute");
+	addMenu(new ListIsInGroup, "List.IsInGroup");
+	addMenu(new ListNotInGroup, "List.NotInGroup");
+	addMenu(new ListLeave, "List.Leave");
+	addMenu(new ListJoin, "List.Join");
+	addMenu(new ListActivate, "List.Activate");
 
 	add_radar_listeners();
 
-	MenuSLURLDict::getInstance();
+	LLTextEditor::addMenuListeners();
 
 	// Media Ctrl menus
 	addMenu(new MediaCtrlCopyURL(), "Copy.PageURL");
@@ -9906,9 +9974,8 @@ void initialize_menus()
 void region_change()
 {
 	// Remove current dynamic items
-	for (custom_menu_item_list_t::iterator i = gCustomMenuItems.begin(); i != gCustomMenuItems.end(); ++i)
+	for (auto item : gCustomMenuItems)
 	{
-		LLMenuItemCallGL* item = (*i);
 		item->getParent()->removeChild(item);
 		delete item;
 	}

@@ -257,6 +257,7 @@ void LLPrefsAscentChat::refreshValues()
 	mFriendNames                    = gSavedSettings.getS32("FriendNameSystem");
 	mGroupMembersNames              = gSavedSettings.getS32("GroupMembersNameSystem");
 	mLandManagementNames            = gSavedSettings.getS32("LandManagementNameSystem");
+	mProfileNames			= gSavedSettings.getS32("ProfileNameSystem");
 	mRadarNames                     = gSavedSettings.getS32("RadarNameSystem");
 	mSpeakerNames                   = gSavedSettings.getS32("SpeakerNameSystem");
 
@@ -454,6 +455,7 @@ void LLPrefsAscentChat::cancel()
 	gSavedSettings.setS32("FriendNameSystem",                      mFriendNames);
 	gSavedSettings.setS32("GroupMembersNameSystem",                mGroupMembersNames);
 	gSavedSettings.setS32("LandManagementNameSystem",              mLandManagementNames);
+	gSavedSettings.setS32("ProfileNameSystem",                     mProfileNames);
 	gSavedSettings.setS32("RadarNameSystem",                       mRadarNames);
 	gSavedSettings.setS32("SpeakerNameSystem",                     mSpeakerNames);
 

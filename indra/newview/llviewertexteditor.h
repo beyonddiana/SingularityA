@@ -39,7 +39,7 @@
 //
 // Classes
 //
-class LLViewerTextEditor : public LLTextEditor
+class LLViewerTextEditor final : public LLTextEditor
 {
 	
 public:

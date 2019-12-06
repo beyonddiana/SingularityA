@@ -66,7 +66,9 @@ void show_picture(const LLUUID& id, const std::string& name)
 	S32 left, top;
 	gFloaterView->getNewFloaterPosition(&left, &top);
 	LLRect rect = gSavedSettings.getRect("PreviewTextureRect");
-	(new LLPreviewTexture("preview texture", rect.translate(left - rect.mLeft, rect.mTop - top), name, id))->setFocus(true);
+	auto preview = new LLPreviewTexture("preview texture", rect.translate(left - rect.mLeft, rect.mTop - top), name, id);
+	preview->setFocus(true);
+	gFloaterView->adjustToFitScreen(preview, false);
 }
 
 //static

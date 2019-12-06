@@ -244,8 +244,6 @@ private:
 
 
 ///////////////////////////////////////////////////////////////////
-LLTextEditor::is_friend_signal_t* LLTextEditor::mIsFriendSignal = nullptr;
-LLTextEditor::is_blocked_signal_t* LLTextEditor::mIsObjectBlockedSignal = nullptr;
 
 LLTextEditor::LLTextEditor(
 	const std::string& name,
@@ -372,9 +370,6 @@ LLTextEditor::~LLTextEditor()
 		menu->die();
 		mPopupMenuHandle.markDead();
 	}
-	/* Singu Note: Static this, we'll use it wherever we can!
-	delete mIsFriendSignal;
-	delete mIsObjectBlockedSignal;*/
 }
 
 const std::string& LLTextEditor::getMenuSegmentUrl() const
@@ -384,24 +379,36 @@ const std::string& LLTextEditor::getMenuSegmentUrl() const
 	return style ? style->getLinkHREF() : LLStringUtil::null;
 }
 
-static LLTextEditor* get_focused_text_editor()
+static LFIDBearer::Type get_type_from_url(const std::string& url)
 {
-	auto* te =
-#ifdef SHOW_ASSERT
-		dynamic_cast<LLTextEditor*>
-#else
-		static_cast<LLTextEditor*>
-#endif
-		(gFocusMgr.getKeyboardFocus());
-	llassert(te); // This listener only applies to text editors
-	return te;
+	auto pos = url.find("/app/");
+	if (pos != std::string::npos && pos + 10 <= url.size())
+	{
+		auto type = url.substr(pos + 5, 5);
+		return type == "agent" ? LFIDBearer::AVATAR
+			: type == "group" ? LFIDBearer::GROUP
+			: LFIDBearer::OBJECT;
+	}
+	return LFIDBearer::NONE;
+}
+
+LLUUID LLTextEditor::getStringUUIDSelectedItem() const
+{
+	const auto& url = getMenuSegmentUrl();
+	const auto& type = get_type_from_url(url);
+	return type == LFIDBearer::NONE ? LLUUID::null : LLUUID(type == OBJECT ? LLUrlAction::getObjectId(url) : LLUrlAction::getUserID(url));
+}
+
+LFIDBearer::Type LLTextEditor::getSelectedType() const
+{
+	return get_type_from_url(getMenuSegmentUrl());
 }
 
 class CopyRawText : public LLMemberListener<LLView>
 {
 	bool handleEvent(LLPointer<LLOldEvents::LLEvent>, const LLSD& userdata) override
 	{
-		get_focused_text_editor()->copyRaw();
+		LFIDBearer::getActive<LLTextEditor>()->copyRaw();
 		return true;
 	}
 };
@@ -415,16 +422,11 @@ class TextEditorVisible : public LLMemberListener<LLView>
 	}
 };
 
-static const std::string& get_focused_url()
-{
-	return get_focused_text_editor()->getMenuSegmentUrl();
-}
-
 class ContextUrl : public LLMemberListener<LLView>
 {
 	bool handleEvent(LLPointer<LLOldEvents::LLEvent>, const LLSD& userdata) override
 	{
-		const auto& url = get_focused_url();
+		const auto& url = LFIDBearer::getActive<LLTextEditor>()->getMenuSegmentUrl();
 		const auto& op = userdata.asStringRef();
 		if (op == "Open") LLUrlAction::openURL(url);
 		else if (op == "OpenInternal") LLUrlAction::openURLInternal(url);
@@ -433,10 +435,6 @@ class ContextUrl : public LLMemberListener<LLView>
 		else if (op == "Block") LLUrlAction::blockObject(url);
 		else if (op == "Unblock") LLUrlAction::unblockObject(url);
 		else if (op == "Teleport") LLUrlAction::teleportToLocation(url);
-		else if (op == "ShowProfile") LLUrlAction::showProfile(url);
-		else if (op == "AddFriend") LLUrlAction::addFriend(url);
-		else if (op == "RemoveFriend") LLUrlAction::removeFriend(url);
-		else if (op == "SendIM") LLUrlAction::sendIM(url);
 		else if (op == "ShowOnMap") LLUrlAction::showLocationOnMap(url);
 		else if (op == "CopyLabel") LLUrlAction::copyLabelToClipboard(url);
 		else if (op == "CopyUrl") LLUrlAction::copyURLToClipboard(url);
@@ -444,65 +442,13 @@ class ContextUrl : public LLMemberListener<LLView>
 	}
 };
 
-class ContextIDUrl : public LLMemberListener<LLView>
-{
-protected:
-	std::string getID(const std::string& type) const
-	{
-		const auto& url = get_focused_url();
-		// Empty works like avatar and group, "object" is an object (you needed to be told this)
-		return type.empty() ? LLUrlAction::getUserID(url) : LLUrlAction::getObjectId(url);
-	}
-};
-
-class ContextUrlCopy : public ContextIDUrl
+class ContextUrlCopy : public LLMemberListener<LLView>
 {
 	bool handleEvent(LLPointer<LLOldEvents::LLEvent>, const LLSD& userdata) override
 	{
-		LLView::getWindow()->copyTextToClipboard(utf8str_to_wstring(getID(userdata.asStringRef())));
+		LLView::getWindow()->copyTextToClipboard(utf8str_to_wstring(LFIDBearer::getActiveSelectedID().asString()));
 		return true;
 	}
-};
-
-class ContextUrlExt : public ContextIDUrl
-{
-	bool handleEvent(LLPointer<LLOldEvents::LLEvent>, const LLSD& userdata) override
-	{
-		std::string cmd = userdata.asStringRef();
-		std::string type;
-		const auto sep = cmd.find(',');
-		if (sep != std::string::npos)
-		{
-			type = cmd.substr(sep);
-			cmd = cmd.substr(0, sep);
-		}
-		mExtCallback(cmd, LLUUID(getID(type)));
-		return true;
-	}
-	LLTextEditor::ext_slurl_cb mExtCallback;
-public:
-	ContextUrlExt(LLTextEditor::ext_slurl_cb cb) : mExtCallback(cb) {}
-};
-
-class ContextUrlExtVisible : public ContextIDUrl
-{
-	bool handleEvent(LLPointer<LLOldEvents::LLEvent>, const LLSD& userdata) override
-	{
-		std::string cmd = userdata["data"];
-		std::string type;
-		const auto sep = cmd.find(',');
-		if (sep != std::string::npos)
-		{
-			type = cmd.substr(sep);
-			cmd = cmd.substr(0, sep);
-		}
-
-		LLMenuGL::sMenuContainer->findControl(userdata["control"].asString())->setValue(mExtVCB(cmd, LLUUID(getID(type))));
-		return true;
-	}
-	LLTextEditor::ext_slurl_visible_cb mExtVCB;
-public:
-	ContextUrlExtVisible(LLTextEditor::ext_slurl_visible_cb vcb) : mExtVCB(vcb) {}
 };
 
 
@@ -581,14 +527,12 @@ void LLTextEditor::spell_add(void* data)
 }
 
 //static
-void LLTextEditor::addMenuListeners(ext_slurl_cb cb, ext_slurl_visible_cb vcb)
+void LLTextEditor::addMenuListeners()
 {
 	(new CopyRawText)->registerListener(LLMenuGL::sMenuContainer, "CopyRawText");
 	(new TextEditorVisible)->registerListener(LLMenuGL::sMenuContainer, "TextEditorVisible");
 	(new ContextUrl)->registerListener(LLMenuGL::sMenuContainer, "Text.Url");
 	(new ContextUrlCopy)->registerListener(LLMenuGL::sMenuContainer, "Text.Url.CopyUUID");
-	(new ContextUrlExt(cb))->registerListener(LLMenuGL::sMenuContainer, "Text.Url.Ext");
-	(new ContextUrlExtVisible(vcb))->registerListener(LLMenuGL::sMenuContainer, "Text.Url.ExtVisible");
 }
 
 void LLTextEditor::setTrackColor( const LLColor4& color )
@@ -767,34 +711,6 @@ LLMenuGL* LLTextEditor::createUrlContextMenu(S32 x, S32 y, const std::string &in
 	// create and return the context menu from the XUI file
 	llassert(LLMenuGL::sMenuContainer != NULL);
 	auto menu = LLUICtrlFactory::instance().buildMenu(xui_file, LLMenuGL::sMenuContainer);
-	if (menu)
-	{
-		if (mIsFriendSignal)
-		{
-			bool isFriend = *(*mIsFriendSignal)(LLUUID(LLUrlAction::getUserID(url)));
-			LLView* addFriendButton = menu->findChild<LLView>("add_friend");
-			LLView* removeFriendButton = menu->findChild<LLView>("remove_friend");
-
-			if (addFriendButton && removeFriendButton)
-			{
-				addFriendButton->setVisible(!isFriend);
-				removeFriendButton->setVisible(isFriend);
-			}
-		}
-
-		if (mIsObjectBlockedSignal)
-		{
-			bool is_blocked = *(*mIsObjectBlockedSignal)(LLUUID(LLUrlAction::getObjectId(url)), LLUrlAction::getObjectName(url));
-			LLView* blockButton = menu->findChild<LLView>("block_object");
-			LLView* unblockButton = menu->findChild<LLView>("unblock_object");
-
-			if (blockButton && unblockButton)
-			{
-				blockButton->setVisible(!is_blocked);
-				unblockButton->setVisible(is_blocked);
-			}
-		}
-	}
 	return menu;
 }
 
@@ -1575,9 +1491,7 @@ BOOL LLTextEditor::handleRightMouseDown( S32 x, S32 y, MASK mask )
 
 		mLastContextMenuX = x;
 		mLastContextMenuY = y;
-		menu->buildDrawLabels();
-		menu->updateParent(LLMenuGL::sMenuContainer);
-		LLMenuGL::showPopup(this, menu, x, y);
+		showMenu(this, menu, x, y);
 	}
 	return TRUE;
 }
@@ -5177,24 +5091,6 @@ BOOL LLTextEditor::exportBuffer(std::string &buffer )
 	outstream << "}\n";
 
 	return TRUE;
-}
-
-boost::signals2::connection LLTextEditor::setIsFriendCallback(const is_friend_signal_t::slot_type& cb)
-{
-	if (!mIsFriendSignal)
-	{
-		mIsFriendSignal = new is_friend_signal_t();
-	}
-	return mIsFriendSignal->connect(cb);
-}
-
-boost::signals2::connection LLTextEditor::setIsObjectBlockedCallback(const is_blocked_signal_t::slot_type& cb)
-{
-	if (!mIsObjectBlockedSignal)
-	{
-		mIsObjectBlockedSignal = new is_blocked_signal_t();
-	}
-	return mIsObjectBlockedSignal->connect(cb);
 }
 
 //////////////////////////////////////////////////////////////////////////

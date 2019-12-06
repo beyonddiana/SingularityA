@@ -46,7 +46,7 @@ class LLViewerRegion;
 class LLAvatarName;
 // [/SL:KB]
 
-class LLNetMap : public LLPanel, public LFIDBearer
+class LLNetMap final : public LLPanel, public LFIDBearer
 {
 public:
 	LLNetMap(const std::string& name);
@@ -68,9 +68,9 @@ public:
 	/*virtual*/ BOOL	handleRightMouseDown( S32 x, S32 y, MASK mask );
 	/*virtual*/ BOOL	handleDoubleClick( S32 x, S32 y, MASK mask );
 
-	LLUUID getStringUUIDSelectedItem() const override { return mClosestAgentAtLastRightClick; }
-	uuid_vec_t getSelectedIDs() const override { return mClosestAgentsAtLastClick; }
-	S32 getNumSelected() const override { return mClosestAgentsAtLastClick.size(); }
+	LLUUID getStringUUIDSelectedItem() const override final { return mClosestAgentAtLastRightClick; }
+	uuid_vec_t getSelectedIDs() const override final { return mClosestAgentsAtLastClick; }
+	S32 getNumSelected() const override final { return mClosestAgentsAtLastClick.size(); }
 
 	static void mm_setcolor(LLUUID key,LLColor4 col); //moymod
 

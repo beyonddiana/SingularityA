@@ -45,10 +45,11 @@ LLNameEditor::LLNameEditor(const std::string& name, const LLRect& rect,
 		bool is_group,
 		const std::string& loading,
 		bool rlv_sensitive,
+		const std::string& name_system,
 		bool click_for_profile,
 		const LLFontGL* glfont,
 		S32 max_text_length)
-: LLNameUI(loading, rlv_sensitive, name_id, is_group)
+: LLNameUI(loading, rlv_sensitive, name_id, is_group, name_system)
 , LLLineEditor(name, rect, LLStringUtil::null, glfont, max_text_length)
 , mClickForProfile(click_for_profile)
 {
@@ -75,15 +76,14 @@ BOOL LLNameEditor::handleRightMouseDown(S32 x, S32 y, MASK mask)
 {
 	bool simple_menu = mContextMenuHandle.get()->getName() == "rclickmenu";
 	std::string new_menu;
-	// Singu TODO: Generic menus for groups
-	bool needs_simple = mIsGroup || !mAllowInteract || mNameID.isNull(); // Need simple if no ID or blocking interaction
+	bool needs_simple = !mAllowInteract || mNameID.isNull(); // Need simple if no ID or blocking interaction
 	if (!simple_menu && needs_simple) // Switch to simple menu
 	{
 		new_menu = "menu_texteditor.xml";
 	}
-	else if (!needs_simple && simple_menu)
+	else // TODO: This is lazy, but I cannot recall a name editor that switches between group and avatar, so logic is not needed yet.
 	{
-		new_menu = "menu_nameeditor_avatar.xml";
+		new_menu = mIsGroup ? "menu_nameeditor_group.xml" : "menu_nameeditor_avatar.xml";
 	}
 	if (!new_menu.empty()) setContextMenu(LLUICtrlFactory::instance().buildMenu(new_menu, LLMenuGL::sMenuContainer));
 	sActive = this;
@@ -124,6 +124,7 @@ LLXMLNodePtr LLNameEditor::getXML(bool save_children) const
 	node->createChild("label", TRUE)->setStringValue(mInitialValue);
 	node->createChild("rlv_sensitive", TRUE)->setBoolValue(mRLVSensitive);
 	node->createChild("click_for_profile", TRUE)->setBoolValue(mClickForProfile);
+	node->createChild("name_system", TRUE)->setStringValue(mNameSystem);
 
 	return node;
 }
@@ -145,10 +146,12 @@ LLView* LLNameEditor::fromXML(LLXMLNodePtr node, LLView *parent, LLUICtrlFactory
 	node->getAttribute_bool("rlv_sensitive", rlv_sensitive);
 	bool click_for_profile = true;
 	node->getAttribute_bool("click_for_profile", click_for_profile);
+	std::string name_system;
+	node->getAttributeString("name_system", name_system);
 
 	LLNameEditor* line_editor = new LLNameEditor("name_editor",
 								rect,
-								id, is_group, loading, rlv_sensitive,
+								id, is_group, loading, rlv_sensitive, name_system,
 								click_for_profile,
 								LLView::selectFont(node),
 								max_text_length);

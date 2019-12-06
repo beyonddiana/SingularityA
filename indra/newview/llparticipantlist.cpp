@@ -78,7 +78,7 @@ void LLParticipantList::setupContextMenu()
 		static LLMenuGL* menu = LLUICtrlFactory::getInstance()->buildMenu("menu_local_avs.xml", gMenuHolder);
 		mAvatarList->setContextMenu(menu);
 	}
-	else mAvatarList->setContextMenu(0);
+	else mAvatarList->setContextMenu(LFIDBearer::AVATAR);
 }
 
 BOOL LLParticipantList::postBuild()

@@ -142,6 +142,32 @@ BOOL LLNameListCtrl::handleDoubleClick(S32 x, S32 y, MASK mask)
 	return handled;
 }
 
+#define CONVERT_TO_RETTYPE(nametype, rettype)	\
+nametype:										\
+{												\
+	if (ret == NONE)							\
+		ret = rettype;							\
+	else if (ret != rettype)					\
+		return MULTIPLE;						\
+	break;										\
+}
+
+LFIDBearer::Type LLNameListCtrl::getSelectedType() const
+{
+	auto ret = NONE;
+	for (const auto& item : getAllSelected())
+	{
+		switch (static_cast<LLNameListItem*>(item)->getNameType())
+		{
+			CONVERT_TO_RETTYPE(case LLNameListItem::INDIVIDUAL, AVATAR);
+			CONVERT_TO_RETTYPE(case LLNameListItem::GROUP, GROUP)
+			CONVERT_TO_RETTYPE(default, COUNT) // Invalid, but just use count instead
+		}
+	}
+	return ret;
+}
+#undef CONVERT_TO_RETTYPE
+
 // public
 void LLNameListCtrl::addGroupNameItem(const LLUUID& group_id, EAddPosition pos,
 									  BOOL enabled)

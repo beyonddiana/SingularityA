@@ -58,6 +58,7 @@ public:
 	 * Show group information panel.
 	 */
 	static void show(const LLUUID& group_id);
+	static void showProfiles(const uuid_vec_t& group_ids);
 
 	/**
 	 * Show group information panel, with specific tab open.

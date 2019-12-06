@@ -743,7 +743,7 @@ To buy direct, visit the land and click on the place name in the title bar.
 			<scroll_list background_visible="true" bottom="-513" column_padding="0" draw_border="true"
 			     draw_heading="true"
 			     follows="left|top|right|bottom" height="464" left="4" mouse_opaque="true"
-			     multi_select="false" name="results" search_column="2" width="339">
+			     multi_select="false" name="results" search_column="2" width="339" menu_num="1">
 				<column label="" name="icon" sort="score" sort_ascending="false" width="24" />
 				<column label="" name="type" width="-1" />
 				<column dynamicwidth="true" label="Name" name="name" />

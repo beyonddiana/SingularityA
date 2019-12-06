@@ -11,7 +11,7 @@
          function="Text.Url" userdata="CopyUrl" />
     </menu_item_call>
   <menu_item_call label="Copy Key to clipboard" name="key_copy">
-    <menu_item_call.on_click function="Text.Url.CopyUUID" />
+    <menu_item_call.on_click function="List.CopyUUIDs" />
   </menu_item_call>
   <menu_item_call label="Select All" name="Select All">
     <on_click function="Text" userdata="SelectAll"/>

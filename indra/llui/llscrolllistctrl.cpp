@@ -2036,6 +2036,11 @@ void LLScrollListCtrl::setFilter(const std::string& filter)
 	adjustScrollbar(unfiltered_count);
 }
 
+void LLScrollListCtrl::setContextMenu(const std::string& menu)
+{
+	setContextMenu(LLUICtrlFactory::instance().buildMenu(menu, LLMenuGL::sMenuContainer));
+}
+
 
 BOOL LLScrollListCtrl::handleHover(S32 x,S32 y,MASK mask)
 {
@@ -2695,17 +2700,17 @@ void LLScrollListCtrl::setScrollListParameters(LLXMLNodePtr node)
 
 	if (node->hasAttribute("menu_num"))
 	{
-		// Some scroll lists use common menus identified by number
-		// 0 is menu_avs_list.xml, 1 will be for groups, 2 could be for lists of objects
+		// Some UI uses common menus identified by number
+		// 0 is avatars, 1 will be for groups, others could be for lists of objects or locations or experiences
 		S32 menu_num;
 		node->getAttributeS32("menu_num", menu_num);
-		setContextMenu(menu_num);
+		mPopupMenu = sMenus[menu_num];
 	}
 	else if (node->hasAttribute("menu_file"))
 	{
-		std::string menu_file;
-		node->getAttributeString("menu_file", menu_file);
-		mPopupMenu = LLUICtrlFactory::getInstance()->buildMenu(menu_file, LLMenuGL::sMenuContainer);
+		std::string menu;
+		node->getAttributeString("menu_file", menu);
+		if (!menu.empty()) setContextMenu(menu);
 	}
 }
 

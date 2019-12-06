@@ -385,9 +385,9 @@ public:
 		using an arbitrary pointer or scalar type to std::string.
 	 */
 	//@{
-		LLSD(const void*);				///< construct from aribrary pointers
-		void assign(const void*);		///< assign from arbitrary pointers
-		LLSD& operator=(const void*);	///< assign from arbitrary pointers
+		LLSD(const void*) = delete;				///< construct from aribrary pointers
+		void assign(const void*) = delete;		///< assign from arbitrary pointers
+		LLSD& operator=(const void*) = delete;	///< assign from arbitrary pointers
 		
 		bool has(Integer) const;		///< has() only works for Maps
 	//@}
