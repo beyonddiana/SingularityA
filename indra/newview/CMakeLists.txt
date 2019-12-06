@@ -49,7 +49,7 @@ include(ViewerMiscLibs)
 include(WinManifest)
 include(ZLIB)
 include(URIPARSER)
-
+include(TKO)
 
 if(FMODSTUDIO)
   include_directories(${FMODSTUDIO_INCLUDE_DIR})
@@ -83,6 +83,7 @@ include_directories(
     ${HUNSPELL_INCLUDE_DIR}
     ${OPENAL_LIB_INCLUDE_DIRS}
     ${LLAPPEARANCE_INCLUDE_DIRS}
+    ${TKO_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
@@ -1689,6 +1690,7 @@ target_link_libraries(${VIEWER_BINARY_NAME}
     absl::flat_hash_map
     absl::node_hash_map
     ${FMT_LIBRARY}
+	${TKO_LIBRARIES}
     )
 
 if (LINUX)
