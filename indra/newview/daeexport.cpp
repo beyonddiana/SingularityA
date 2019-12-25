@@ -66,6 +66,9 @@
 #include "llimagejpeg.h"
 
 #include "special_functionality.h"
+#include "llmeshrepository.h"
+#include "llvolume.h"
+#include "llvolumemgr.h"
 
 #define TEXTURE_DOWNLOAD_TIMEOUT 60.0f
 
@@ -165,6 +168,9 @@ private:
 	LLView* mExportBtn;
 	LLView* mFileName;
 	LLView* mTextureTypeCombo;
+	LLView* mExportRiggedMesh;
+	LLView* mApplyTextureParams;
+	LLView* mConsolidateFaces;
 
 	DAESaver mSaver;
 	texture_list_t mTexturesToSave;
@@ -182,7 +188,9 @@ public:
 		mCommitCallbackRegistrar.add("ColladaExport.FilePicker",		boost::bind(&ColladaExportFloater::onClickBrowse, this));
 		mCommitCallbackRegistrar.add("ColladaExport.Export",			boost::bind(&ColladaExportFloater::onClickExport, this));
 		mCommitCallbackRegistrar.add("ColladaExport.TextureTypeCombo",	boost::bind(&ColladaExportFloater::onTextureTypeCombo, this, boost::bind(&LLUICtrl::getControlName, _1), _2));
-		mCommitCallbackRegistrar.add("ColladaExport.TextureExport",		boost::bind(&ColladaExportFloater::onTextureExportCheck, this, _2));
+		mCommitCallbackRegistrar.add("ColladaExport.TextureExport", boost::bind(&ColladaExportFloater::onTextureExportCheck, this, _2));
+		mCommitCallbackRegistrar.add("ColladaExport.ExportRiggedMesh",		boost::bind(&ColladaExportFloater::HandleExportRiggedMeshCheck, this, _2));
+
 		LLUICtrlFactory::getInstance()->buildFloater(this, "floater_dae_export.xml");
 
 		addSelectedObjects();
@@ -216,10 +224,17 @@ public:
 		mFileName				= getChildView("file name editor");
 		mExportBtn				= getChildView("export button");
 		mTextureTypeCombo       = getChildView("texture type combo");
+		mExportRiggedMesh       = getChildView("export rigged mesh");
+		mApplyTextureParams     = getChildView("texture params check");
+		mConsolidateFaces		= getChildView("consolidate check");
 		mTitleProgress			= getString("texture_progress");
 
 		mTextureTypeCombo->setValue(gSavedSettings.getS32(mTextureTypeCombo->getControlName()));
+		mExportRiggedMesh->setValue(gSavedSettings.getBOOL(mExportRiggedMesh->getControlName()));
+
 		onTextureExportCheck(getChildView("texture export check")->getValue());
+		HandleExportRiggedMeshCheck(mExportRiggedMesh->getValue());
+
 		return TRUE;
 	}
 
@@ -232,6 +247,12 @@ public:
 	void onTextureExportCheck(const LLSD& value)
 	{
 		mTextureTypeCombo->setEnabled(value);
+	}
+
+	void HandleExportRiggedMeshCheck(const LLSD& value)
+	{
+		//mApplyTextureParams->setEnabled(!value);
+		//mConsolidateFaces->setEnabled(!value);
 	}
 
 	void onTextureTypeCombo(const std::string& control_name, const LLSD& value)
@@ -282,7 +303,8 @@ public:
 
 		if (selection && selection->getFirstRootObject())
 		{
-			mSaver.mOffset = -selection->getFirstRootObject()->getRenderPosition();
+			mSaver.mRootWorldInvMatrix = LLMatrix4(selection->getFirstRootObject()->getRenderMatrix().getF32ptr());
+			mSaver.mRootWorldInvMatrix.invert();
 			mObjectName = selection->getFirstRootNode()->mName;
 			mTotal = 0;
 
@@ -584,7 +606,7 @@ public:
 	}
 };
 
-void DAESaver::addSource(daeElement* mesh, const char* src_id, std::string params, const std::vector<F32> &vals)
+void DAESaver::addSourceParams(daeElement* mesh, const char* src_id, std::string params, const std::vector<F32> &vals)
 {
 	daeElement* source = mesh->add("source");
 	source->setAttribute("id", src_id);
@@ -609,6 +631,80 @@ void DAESaver::addSource(daeElement* mesh, const char* src_id, std::string param
 		pX->setAttribute("name", llformat("%c", *p_iter).c_str());
 		pX->setAttribute("type", "float");
 	}
+}
+
+void DAESaver::addSource(daeElement* mesh, const char* src_id, const char* param_name, const std::vector<F32>& vals)
+{
+	daeElement* source = mesh->add("source");
+	source->setAttribute("id", src_id);
+	daeElement* src_array = source->add("float_array");
+
+	src_array->setAttribute("id", llformat("%s-%s", src_id, "array").c_str());
+	src_array->setAttribute("count", llformat("%d", vals.size()).c_str());
+
+	for (U32 i = 0; i < vals.size(); i++)
+	{
+		((domFloat_array*)src_array)->getValue().append(vals[i]);
+	}
+
+	domAccessor* acc = daeSafeCast<domAccessor>(source->add("technique_common accessor"));
+	acc->setSource(llformat("#%s-%s", src_id, "array").c_str());
+	acc->setCount(vals.size());
+	domElement* pX = acc->add("param");
+	pX->setAttribute("name", param_name);
+	pX->setAttribute("type", "float");
+}
+
+void DAESaver::addSource(daeElement* mesh, const char* src_id, const char* param_name, const std::vector<std::string>& vals)
+{
+	daeElement* source = mesh->add("source");
+	source->setAttribute("id", src_id);
+	daeElement* src_array = source->add("Name_array");
+
+	src_array->setAttribute("id", llformat("%s-%s", src_id, "array").c_str());
+	src_array->setAttribute("count", llformat("%d", vals.size()).c_str());
+
+	for (U32 i = 0; i < vals.size(); i++)
+	{
+		((domName_array*)src_array)->getValue().append(vals[i].c_str());
+	}
+
+	domAccessor* acc = daeSafeCast<domAccessor>(source->add("technique_common accessor"));
+	acc->setSource(llformat("#%s-%s", src_id, "array").c_str());
+	acc->setCount(vals.size());
+	domElement* pX = acc->add("param");
+	pX->setAttribute("name", param_name);
+	pX->setAttribute("type", "name");
+}
+
+void DAESaver::append(daeTArray<domFloat> arr, const LLMatrix4& matrix)
+{
+	for (int i = 0; i < 16; i++)
+		arr.append(matrix.mMatrix[i / 4][i % 4]);
+}
+
+void DAESaver::addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<LLMatrix4>& vals)
+{
+	daeElement* source = parent->add("source");
+	source->setAttribute("id", src_id);
+	daeElement* src_array = source->add("float_array");
+	size_t array_size = 16 * vals.size();
+
+	src_array->setAttribute("id", llformat("%s-%s", src_id, "array").c_str());
+	src_array->setAttribute("count", llformat("%d", array_size).c_str());
+
+    // Copy matrix values (rows & columns) into source array
+	for (std::vector<LLMatrix4>::const_iterator mat_iter = vals.begin(); mat_iter != vals.end(); ++mat_iter)
+		append(((domFloat_array*)src_array)->getValue(), *mat_iter);
+
+	domAccessor* acc = daeSafeCast<domAccessor>(source->add("technique_common accessor"));
+	acc->setSource(llformat("#%s-%s", src_id, "array").c_str());
+	acc->setCount(vals.size());
+	acc->setStride(16);
+
+	domElement* pX = acc->add("param");
+	pX->setAttribute("name", param_name);
+	pX->setAttribute("type", "float4x4");
 }
 
 void DAESaver::addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLViewerObject* obj, int_list_t* faces_to_include)
@@ -667,6 +763,67 @@ void DAESaver::addPolygons(daeElement* mesh, const char* geomID, const char* mat
 		index_offset += face->mNumVertices;
 	}
 	polylist->setCount(num_tris);
+}
+
+void DAESaver::addJointsAndWeights(daeElement* skin, const char* parent_id, LLViewerObject* obj, int_list_t* faces_to_include)
+{
+	domSkin::domJoints* joints = (domSkin::domJoints*)skin->add("joints");
+	domInputLocal* joints_semantic = (domInputLocal*)joints->add("input");
+	joints_semantic->setSemantic("JOINT");
+	joints_semantic->setAttribute("id", llformat("%s-%s", parent_id, "joints").c_str());
+
+	domInputLocal* inv_bind_mtx_semantic = (domInputLocal*)joints->add("input");
+	inv_bind_mtx_semantic->setSemantic("INV_BIND_MATRIX");
+	inv_bind_mtx_semantic->setAttribute("id", llformat("%s-%s", parent_id, "bind_pose").c_str());
+
+	domSkin::domVertex_weights* vertex_weights = (domSkin::domVertex_weights*)skin->add("vertex_weights");
+	domSkin::domVertex_weights::domV* joint_indices = (domSkin::domVertex_weights::domV*)vertex_weights->add("v");
+	domListOfInts& joint_indices_list = joint_indices->getValue();
+	domSkin::domVertex_weights::domVcount* vcounts = (domSkin::domVertex_weights::domVcount*)vertex_weights->add("vcount");
+	domListOfUInts& vcounts_lists = vcounts->getValue();
+
+	std::vector<F32> weights_list;
+
+	for (S32 face_num = 0; face_num < obj->getVolume()->getNumVolumeFaces(); face_num++)
+	{
+		if (skipFace(obj->getTE(face_num))) continue;
+
+		const LLVolumeFace* face = (LLVolumeFace*)&obj->getVolume()->getVolumeFace(face_num);
+
+		if (faces_to_include == NULL || (std::find(faces_to_include->begin(), faces_to_include->end(), face_num) != faces_to_include->end()))
+		{
+			for (S32 i = 0; i < face->mNumVertices; i++)
+			{
+				LLVector4a w = face->mWeights[i];
+				S32 vcount = 0;
+				for (S32 c = 0; c < 4; c++)
+				{
+					S32 joint_idx = (S32)w[c];
+					F32 amount = w[c] - (F32)joint_idx;
+					if (amount > 0.0f)
+					{
+						joint_indices_list.append(joint_idx);
+						weights_list.push_back(amount);
+						vcount++;
+					}
+				}
+				vcounts_lists.append(vcount);
+			}
+		}
+	}
+
+	const char* skin_weights_id = llformat("%s-%s", parent_id, "weights").c_str();
+	addSource(skin, skin_weights_id, "WEIGHT", (const std::vector<F32>&)weights_list);
+
+	domInputLocal* vw_joints_semantic = (domInputLocal*)vertex_weights->add("input");
+	vw_joints_semantic->setSemantic("JOINT");
+	vw_joints_semantic->setAttribute("offset", "0");
+	vw_joints_semantic->setAttribute("source", joints_semantic->getID());
+
+	domInputLocal* vw_weights_semantic = (domInputLocal*)vertex_weights->add("input");
+	vw_weights_semantic->setSemantic("WEIGHT");
+	vw_weights_semantic->setAttribute("offset", "1");
+	vw_weights_semantic->setAttribute("source", skin_weights_id);
 }
 
 void DAESaver::transformTexCoord(S32 num_vert, LLVector2* coord, LLVector3* positions, LLVector3* normals, LLTextureEntry* te, LLVector3 scale)
@@ -743,11 +900,19 @@ bool DAESaver::saveDAE(std::string filename)
 	contributor->add("author")->setCharData(LLAppViewer::instance()->getSecondLifeTitle() + " User");
 	contributor->add("authoring_tool")->setCharData(LLAppViewer::instance()->getSecondLifeTitle() + " Collada Export");
 
+	const bool export_rigged_mesh = gSavedSettings.getBOOL("DAEExportRiggedMesh");
+	const bool export_consolidate_materials = gSavedSettings.getBOOL("DAEExportConsolidateMaterials");
+
 	daeElement* images = root->add("library_images");
 	daeElement* geomLib = root->add("library_geometries");
 	daeElement* effects = root->add("library_effects");
 	daeElement* materials = root->add("library_materials");
 	daeElement* scene = root->add("library_visual_scenes visual_scene");
+
+	daeElement* controllersLib = NULL;
+	if (export_rigged_mesh)
+		controllersLib = root->add("library_controllers");
+
 	scene->setAttribute("id", "Scene");
 	scene->setAttribute("name", "Scene");
 
@@ -757,7 +922,9 @@ bool DAESaver::saveDAE(std::string filename)
 	}
 
 	S32 prim_nr = 0;
+	const bool applyTexCoord = gSavedSettings.getBOOL("DAEExportTextureParams");
 
+	// Iterate over objects
 	for (obj_info_t::iterator obj_iter = mObjects.begin(); obj_iter != mObjects.end(); ++obj_iter)
 	{
 		LLViewerObject* obj = obj_iter->first;
@@ -775,7 +942,6 @@ bool DAESaver::saveDAE(std::string filename)
 		std::vector<F32> position_data;
 		std::vector<F32> normal_data;
 		std::vector<F32> uv_data;
-		bool applyTexCoord = gSavedSettings.getBOOL("DAEExportTextureParams");
 
 		S32 num_faces = obj->getVolume()->getNumVolumeFaces();
 		for (S32 face_num = 0; face_num < num_faces; face_num++)
@@ -787,6 +953,9 @@ bool DAESaver::saveDAE(std::string filename)
 
 			v4adapt verts(face->mPositions);
 			v4adapt norms(face->mNormals);
+			LLStrider<LLVector4a> skin_weights;
+			skin_weights = face->mWeights;
+			
 
 			LLVector2* newCoord = NULL;
 
@@ -829,11 +998,10 @@ bool DAESaver::saveDAE(std::string filename)
 				delete[] newCoord;
 			}
 		}
-
-
-		addSource(mesh, llformat("%s-%s", geomID, "positions").c_str(), "XYZ", position_data);
-		addSource(mesh, llformat("%s-%s", geomID, "normals").c_str(), "XYZ", normal_data);
-		addSource(mesh, llformat("%s-%s", geomID, "map0").c_str(), "ST", uv_data);
+		
+		addSourceParams(mesh, llformat("%s-%s", geomID, "positions").c_str(), "XYZ", position_data);
+		addSourceParams(mesh, llformat("%s-%s", geomID, "normals").c_str(), "XYZ", normal_data);
+		addSourceParams(mesh, llformat("%s-%s", geomID, "map0").c_str(), "ST", uv_data);
 
 		// Add the <vertices> element
 		{
@@ -848,13 +1016,13 @@ bool DAESaver::saveDAE(std::string filename)
 		getMaterials(obj, &objMaterials);
 
 		// Add triangles
-		if (gSavedSettings.getBOOL("DAEExportConsolidateMaterials"))
+		int_list_t faces;
+		if (export_consolidate_materials)
 		{
-			for (U32 objMaterial = 0; objMaterial < objMaterials.size(); objMaterial++)
+			for (U32 material_idx = 0; material_idx < objMaterials.size(); material_idx++)
 			{
-				int_list_t faces;
-				getFacesWithMaterial(obj, objMaterials[objMaterial], &faces);
-				std::string matName = objMaterials[objMaterial].name;
+				getFacesWithMaterial(obj, objMaterials[material_idx], &faces);
+				std::string matName = objMaterials[material_idx].name;
 				addPolygons(mesh, geomID, (matName + "-material").c_str(), obj, &faces);
 			}
 		}
@@ -864,7 +1032,6 @@ bool DAESaver::saveDAE(std::string filename)
 			for (S32 face_num = 0; face_num < num_faces; face_num++)
 			{
 				if (skipFace(obj->getTE(face_num))) continue;
-				int_list_t faces;
 				faces.push_back(face_num);
 				std::string matName = objMaterials[mat_nr++].name;
 				addPolygons(mesh, geomID, (matName + "-material").c_str(), obj, &faces);
@@ -880,19 +1047,55 @@ bool DAESaver::saveDAE(std::string filename)
 		domMatrix* matrix = (domMatrix*)node->add("matrix");
 		LLXform srt;
 		srt.setScale(obj->getScale());
-		srt.setPosition(obj->getRenderPosition() + mOffset);
+		srt.setPosition(obj->getRenderPosition());
 		srt.setRotation(obj->getRenderRotation());
 		LLMatrix4 m4;
 		srt.getLocalMat4(m4);
+		m4 *= mRootWorldInvMatrix;
 		for (int i=0; i<4; i++)
 			for (int j=0; j<4; j++)
 				(matrix->getValue()).append(m4.mMatrix[j][i]);
 
-		// Geometry of the node
-		daeElement* nodeGeometry = node->add("instance_geometry");
+		daeElement* nodeInstance;
+		if (export_rigged_mesh && obj->isRiggedMesh())
+		{
+			// Get the skin info
+			LLVOVolume* obj_vov = (LLVOVolume*)obj;
+			const LLMeshSkinInfo* skin_info = obj_vov->getSkinInfo();
+
+			// Add a controller + skin for this rigged mesh
+			domController* controller = (domController*)controllersLib->add("controller");
+			controller->setAttribute("id", llformat("%s-%s", geomID, "skin").c_str());
+			domSkin* skin = (domSkin*)controller->add("skin");
+			skin->setSource(geom->getID());
+
+			// Set skin bind shape matrix
+			domFloat4x4& bind_shape_matrix = ((domSkin::domBind_shape_matrix*)skin->add("bind_shape_matrix"))->getValue();
+			append(bind_shape_matrix, skin_info->mBindShapeMatrix);
+
+			// Add joints name source to skin (as Name_array)
+			addSource(skin, llformat("%s-%s", controller->getID(), "joints").c_str(), "JOINT", skin_info->mJointNames);
+
+			// Add bind poses source to skin
+			addSource(skin, llformat("%s-%s", controller->getID(), "bind_poses").c_str(), "TRANSFORM", skin_info->mInvBindMatrix);
+
+			// Add vertex weight source, joints, and vertex weights
+			addJointsAndWeights(skin, controller->getID(), obj, &faces);
+			
+			// Geometry of the node
+			nodeInstance = node->add("instance_controller");
+			nodeInstance->setAttribute("url", llformat("#%s-%s", geomID, "mesh").c_str());
+			domInstance_controller::domSkeleton* skeleton = (domInstance_controller::domSkeleton*)nodeInstance->add("skeleton");
+		}
+		else
+		{
+			// Geometry of the node
+			nodeInstance = node->add("instance_geometry");
+			nodeInstance->setAttribute("url", llformat("#%s-%s", geomID, "mesh").c_str());
+		}
 
 		// Bind materials
-		daeElement* tq = nodeGeometry->add("bind_material technique_common");
+		daeElement* tq = nodeInstance->add("bind_material technique_common");
 		for (U32 objMaterial = 0; objMaterial < objMaterials.size(); objMaterial++)
 		{
 			std::string matName = objMaterials[objMaterial].name;
@@ -900,9 +1103,6 @@ bool DAESaver::saveDAE(std::string filename)
 			instanceMaterial->setAttribute("symbol", (matName + "-material").c_str());
 			instanceMaterial->setAttribute("target", ("#" + matName + "-material").c_str());
 		}
-
-		nodeGeometry->setAttribute("url", llformat("#%s-%s", geomID, "mesh").c_str());
-
 	}
 
 	// Effects (face texture, color, alpha)
