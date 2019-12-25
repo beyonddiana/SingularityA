@@ -103,7 +103,7 @@ private:
 	void addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<std::string> &vals);
 	void append(daeTArray<domFloat> arr, const LLMatrix4& matrix);
 	void addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLViewerObject* obj, int_list_t* faces_to_include);
-	void addJointsAndWeights(daeElement* skin, const char* geomID, const char* materialID, LLViewerObject* obj, int_list_t* faces_to_include);
+	void addJointsAndWeights(daeElement* skin, const char* geomID, LLViewerObject* obj, int_list_t* faces_to_include);
 	bool skipFace(LLTextureEntry *te);
 	MaterialInfo getMaterial(LLTextureEntry* te);
 	void getMaterials(LLViewerObject* obj, material_list_t* ret);
