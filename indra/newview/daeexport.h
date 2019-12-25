@@ -53,6 +53,26 @@ public:
 		{
 			return !(*this == rhs);
 		}
+
+		MaterialInfo()
+		{
+		}
+
+		MaterialInfo(const MaterialInfo& rhs)
+		{
+			textureID = rhs.textureID;
+			color = rhs.color;
+			name = rhs.name;
+		}
+
+		MaterialInfo& operator= (const MaterialInfo& rhs)
+		{
+			textureID = rhs.textureID;
+			color = rhs.color;
+			name = rhs.name;
+			return *this;
+		}
+
 	};
 
 	typedef std::vector<std::pair<LLViewerObject*,std::string>> obj_info_t;
@@ -65,7 +85,7 @@ public:
 	id_list_t mTextures;
 	string_list_t mTextureNames;
 	obj_info_t mObjects;
-	LLVector3 mOffset;
+	LLMatrix4 mRootWorldInvMatrix;
 	std::string mImageFormat;
 	S32 mTotalNumMaterials;
 
@@ -76,8 +96,13 @@ public:
 
 private:
 	void transformTexCoord(S32 num_vert, LLVector2* coord, LLVector3* positions, LLVector3* normals, LLTextureEntry* te, LLVector3 scale);
-	void addSource(daeElement* mesh, const char* src_id, const std::string& params, const std::vector<F32> &vals);
+	void addSourceParams(daeElement* mesh, const char* src_id, const std::string& params, const std::vector<F32>& vals);
+	void addSource(daeElement* mesh, const char* src_id, const char* param_name, const std::vector<F32>& vals);
+	void addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<LLMatrix4>& vals);
+	void addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<std::string> &vals);
+	void append(daeTArray<domFloat> arr, const LLMatrix4& matrix);
 	void addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLViewerObject* obj, int_list_t* faces_to_include);
+	void addJointsAndWeights(daeElement* skin, const char* parent_id, LLViewerObject* obj, int_list_t* faces_to_include);
 	bool skipFace(LLTextureEntry *te);
 	MaterialInfo getMaterial(LLTextureEntry* te);
 	void getMaterials(LLViewerObject* obj, material_list_t* ret);
