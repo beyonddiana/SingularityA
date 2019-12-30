@@ -755,26 +755,42 @@ void DAESaver::addPolygons(daeElement* mesh, const char* geomID, const char* mat
 
 void DAESaver::addJointsAndWeights(daeElement* skin, const char* parent_id, LLViewerObject* obj, int_list_t* faces_to_include)
 {
-	domSkin::domJoints* joints = (domSkin::domJoints*)skin->add("joints");
-	domInputLocal* joints_semantic = (domInputLocal*)joints->add("input");
-	joints_semantic->setSemantic("JOINT");
-	joints_semantic->setAttribute("id", llformat("%s-%s", parent_id, "joints").c_str());
+	std::string joints_source_id = llformat("%s-%s", parent_id, "joints");
+	std::string skin_weights_source_id = llformat("%s-%s", parent_id, "weights");
+	std::string bind_pose_source_id = llformat("%s-%s", parent_id, "bind_poses");
 
-	domInputLocal* inv_bind_mtx_semantic = (domInputLocal*)joints->add("input");
-	inv_bind_mtx_semantic->setSemantic("INV_BIND_MATRIX");
-	inv_bind_mtx_semantic->setAttribute("id", llformat("%s-%s", parent_id, "bind_pose").c_str());
+	domSkin::domJoints* joints = daeSafeCast<domSkin::domJoints>(skin->add("joints"));
+	domSkin::domVertex_weights* vertex_weights = daeSafeCast<domSkin::domVertex_weights>(skin->add("vertex_weights"));
 
-	domSkin::domVertex_weights* vertex_weights = (domSkin::domVertex_weights*)skin->add("vertex_weights");
-	domSkin::domVertex_weights::domV* joint_indices = (domSkin::domVertex_weights::domV*)vertex_weights->add("v");
-	domListOfInts& joint_indices_list = joint_indices->getValue();
-	domSkin::domVertex_weights::domVcount* vcounts = (domSkin::domVertex_weights::domVcount*)vertex_weights->add("vcount");
-	domListOfUInts& vcounts_lists = vcounts->getValue();
+	domInputLocal* joints_input = (domInputLocal*)joints->add("input");
+	joints_input->setSemantic("JOINT");
+	joints_input->setSource(("#" + joints_source_id).c_str());
+
+	domInputLocal* inv_bind_mtx_input = daeSafeCast<domInputLocal>(joints->add("input"));
+	inv_bind_mtx_input->setSemantic("INV_BIND_MATRIX");
+	inv_bind_mtx_input->setSource(("#" + bind_pose_source_id).c_str());
+
+	domInputLocalOffset* vw_joints_input = daeSafeCast<domInputLocalOffset>(vertex_weights->add("input"));
+	vw_joints_input->setAttribute("offset", "0");
+	vw_joints_input->setSemantic("JOINT");
+	vw_joints_input->setSource(("#" + joints_source_id).c_str());
+
+	domInputLocalOffset* vw_weights_input = daeSafeCast<domInputLocalOffset>(vertex_weights->add("input"));
+	vw_weights_input->setAttribute("offset", "1");
+	vw_weights_input->setSemantic("WEIGHT");
+	vw_weights_input->setSource(("#" + skin_weights_source_id).c_str());
+
+	domSkin::domVertex_weights::domV* v_array = daeSafeCast<domSkin::domVertex_weights::domV>(vertex_weights->add("v"));
+	domListOfInts& v_array_list = v_array->getValue();
+	domSkin::domVertex_weights::domVcount* vcounts = daeSafeCast<domSkin::domVertex_weights::domVcount>(vertex_weights->add("vcount"));
+	domListOfUInts& vcounts_list = vcounts->getValue();
 
 	std::vector<F32> weights_list;
 
 	for (S32 face_num = 0; face_num < obj->getVolume()->getNumVolumeFaces(); face_num++)
 	{
-		if (skipFace(obj->getTE(face_num))) continue;
+		if (skipFace(obj->getTE(face_num)))
+			continue;
 
 		const LLVolumeFace* face = (LLVolumeFace*)&obj->getVolume()->getVolumeFace(face_num);
 
@@ -790,28 +806,19 @@ void DAESaver::addJointsAndWeights(daeElement* skin, const char* parent_id, LLVi
 					F32 amount = w[c] - (F32)joint_idx;
 					if (amount > 0.0f)
 					{
-						joint_indices_list.append(joint_idx);
+						v_array_list.append(joint_idx);
+						v_array_list.append(weights_list.size());
 						weights_list.push_back(amount);
 						vcount++;
 					}
 				}
-				vcounts_lists.append(vcount);
+				vcounts_list.append(vcount);
 			}
 		}
 	}
 
-	const char* skin_weights_id = llformat("%s-%s", parent_id, "weights").c_str();
-	addSource(skin, skin_weights_id, "WEIGHT", (const std::vector<F32>&)weights_list);
-
-	domInputLocal* vw_joints_semantic = (domInputLocal*)vertex_weights->add("input");
-	vw_joints_semantic->setSemantic("JOINT");
-	vw_joints_semantic->setAttribute("offset", "0");
-	vw_joints_semantic->setAttribute("source", joints_semantic->getID());
-
-	domInputLocal* vw_weights_semantic = (domInputLocal*)vertex_weights->add("input");
-	vw_weights_semantic->setSemantic("WEIGHT");
-	vw_weights_semantic->setAttribute("offset", "1");
-	vw_weights_semantic->setAttribute("source", skin_weights_id);
+	addSource(skin, skin_weights_source_id.c_str(), "WEIGHT", (const std::vector<F32>&)weights_list);
+	vertex_weights->setCount(vcounts_list.getCount());
 }
 
 void DAESaver::transformTexCoord(S32 num_vert, LLVector2* coord, LLVector3* positions, LLVector3* normals, LLTextureEntry* te, LLVector3 scale)
@@ -923,7 +930,7 @@ bool DAESaver::saveDAE(std::string filename)
 		generateImagesSection(images);
 	}
 
-	S32 prim_nr = 0;
+	S32 prim_number = 0;
 	const bool applyTexCoord = gSavedSettings.getBOOL("DAEExportTextureParams");
 
 	// Iterate over objects
@@ -932,13 +939,12 @@ bool DAESaver::saveDAE(std::string filename)
 		LLViewerObject* obj = obj_iter->first;
 		S32 total_num_vertices = 0;
 
-		std::string name = "";
-		if (name.empty()) name = llformat("prim%d", prim_nr++);
-
-		const char* geomID = name.c_str();
+		std::string prim_id = llformat("prim%d", prim_number++);
+		std::string geom_id = llformat("%s-%s", prim_id, "mesh");
 
 		daeElement* geom = geomLib->add("geometry");
-		geom->setAttribute("id", llformat("%s-%s", geomID, "mesh").c_str());
+		geom->setAttribute("id", geom_id.c_str());
+
 		daeElement* mesh = geom->add("mesh");
 
 		std::vector<F32> position_data;
@@ -1001,17 +1007,17 @@ bool DAESaver::saveDAE(std::string filename)
 			}
 		}
 
-		addSourceParams(mesh, llformat("%s-%s", geomID, "positions").c_str(), "XYZ", position_data);
-		addSourceParams(mesh, llformat("%s-%s", geomID, "normals").c_str(), "XYZ", normal_data);
-		addSourceParams(mesh, llformat("%s-%s", geomID, "map0").c_str(), "ST", uv_data);
+		addSourceParams(mesh, llformat("%s-%s", prim_id, "positions").c_str(), "XYZ", position_data);
+		addSourceParams(mesh, llformat("%s-%s", prim_id, "normals").c_str(), "XYZ", normal_data);
+		addSourceParams(mesh, llformat("%s-%s", prim_id, "map0").c_str(), "ST", uv_data);
 
 		// Add the <vertices> element
 		{
 			daeElement*	verticesNode = mesh->add("vertices");
-			verticesNode->setAttribute("id", llformat("%s-%s", geomID, "vertices").c_str());
+			verticesNode->setAttribute("id", llformat("%s-%s", prim_id, "vertices").c_str());
 			daeElement* verticesInput = verticesNode->add("input");
 			verticesInput->setAttribute("semantic", "POSITION");
-			verticesInput->setAttribute("source", llformat("#%s-%s", geomID, "positions").c_str());
+			verticesInput->setAttribute("source", llformat("#%s-%s", prim_id, "positions").c_str());
 		}
 
 		material_list_t objMaterials;
@@ -1023,9 +1029,9 @@ bool DAESaver::saveDAE(std::string filename)
 		{
 			for (const auto& objMaterial : objMaterials)
 			{
-				int_list_t faces;
 				getFacesWithMaterial(obj, objMaterial, &faces);
-				addPolygons(mesh, geomID, (objMaterial.name + "-material").c_str(), obj, &faces);
+				std::string matName = objMaterial.name;
+				addPolygons(mesh, prim_id.c_str(), (matName + "-material").c_str(), obj, &faces);
 			}
 		}
 		else
@@ -1036,14 +1042,14 @@ bool DAESaver::saveDAE(std::string filename)
 				if (skipFace(obj->getTE(face_num))) continue;
 				faces.push_back(face_num);
 				std::string matName = objMaterials[mat_nr++].name;
-				addPolygons(mesh, geomID, (matName + "-material").c_str(), obj, &faces);
+				addPolygons(mesh, prim_id.c_str(), (matName + "-material").c_str(), obj, &faces);
 			}
 		}
 
 		daeElement* node = scene->add("node");
 		node->setAttribute("type", "NODE");
-		node->setAttribute("id", geomID);
-		node->setAttribute("name", geomID);
+		node->setAttribute("id", prim_id.c_str());
+		node->setAttribute("name", prim_id.c_str());
 
 		// Set tranform matrix (node position, rotation and scale)
 		domMatrix* matrix = (domMatrix*)node->add("matrix");
@@ -1067,33 +1073,34 @@ bool DAESaver::saveDAE(std::string filename)
 
 			// Add a controller + skin for this rigged mesh
 			domController* controller = (domController*)controllersLib->add("controller");
-			controller->setAttribute("id", llformat("%s-%s", geomID, "skin").c_str());
+			std::string controller_id = llformat("%s-%s", prim_id, "skin");
+			controller->setAttribute("id", controller_id.c_str());
 			domSkin* skin = (domSkin*)controller->add("skin");
-			skin->setSource(geom->getID());
+			skin->setSource(geom_id.c_str());
 
 			// Set skin bind shape matrix
 			domFloat4x4& bind_shape_matrix = ((domSkin::domBind_shape_matrix*)skin->add("bind_shape_matrix"))->getValue();
 			append(bind_shape_matrix, skin_info->mBindShapeMatrix);
 
 			// Add joints name source to skin (as Name_array)
-			addSource(skin, llformat("%s-%s", controller->getID(), "joints").c_str(), "JOINT", skin_info->mJointNames);
+			addSource(skin, llformat("%s-%s", controller_id, "joints").c_str(), "JOINT", skin_info->mJointNames);
 
 			// Add bind poses source to skin
-			addSource(skin, llformat("%s-%s", controller->getID(), "bind_poses").c_str(), "TRANSFORM", skin_info->mInvBindMatrix);
+			addSource(skin, llformat("%s-%s", controller_id, "bind_poses").c_str(), "TRANSFORM", skin_info->mInvBindMatrix);
 
 			// Add vertex weight source, joints, and vertex weights
-			addJointsAndWeights(skin, controller->getID(), obj, &faces);
+			addJointsAndWeights(skin, controller_id.c_str(), obj, &faces);
 			
 			// Geometry of the node
 			nodeInstance = node->add("instance_controller");
-			nodeInstance->setAttribute("url", llformat("#%s-%s", geomID, "mesh").c_str());
+			nodeInstance->setAttribute("url", llformat("#%s-%s", prim_id, "mesh").c_str());
 			domInstance_controller::domSkeleton* skeleton = (domInstance_controller::domSkeleton*)nodeInstance->add("skeleton");
 		}
 		else
 		{
 			// Geometry of the node
 			nodeInstance = node->add("instance_geometry");
-			nodeInstance->setAttribute("url", llformat("#%s-%s", geomID, "mesh").c_str());
+			nodeInstance->setAttribute("url", llformat("#%s-%s", prim_id, "mesh").c_str());
 		}
 
 		// Bind materials
