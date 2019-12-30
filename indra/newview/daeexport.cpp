@@ -69,6 +69,9 @@
 #include "llmeshrepository.h"
 #include "llvolume.h"
 #include "llvolumemgr.h"
+#include "llvoavatar.h"
+#include "llvoavatarself.h"
+#include "llcontrolavatar.h"
 
 #define TEXTURE_DOWNLOAD_TIMEOUT 60.0f
 
@@ -677,10 +680,10 @@ void DAESaver::addSource(daeElement* mesh, const char* src_id, const char* param
 	pX->setAttribute("type", "name");
 }
 
-void DAESaver::append(daeTArray<domFloat> arr, const LLMatrix4& matrix)
+void DAESaver::append(daeTArray<domFloat>& arr, const LLMatrix4& matrix)
 {
 	for (int i = 0; i < 16; i++)
-		arr.append(matrix.mMatrix[i / 4][i % 4]);
+		arr.append(matrix.mMatrix[i % 4][i / 4]);
 }
 
 void DAESaver::addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<LLMatrix4>& vals)
@@ -833,6 +836,34 @@ void DAESaver::addJointsAndWeights(daeElement* skin, const char* parent_id, LLVi
 	vertex_weights->setCount(vcounts_list.getCount());
 }
 
+void DAESaver::addJointNodes(daeElement* parent, LLJoint* root)
+{
+	// Set up joint node
+	domNode* root_node = daeSafeCast<domNode>(parent->add("node"));
+	const char* name = root->getName().c_str();
+	root_node->setId(name);
+	root_node->setSid(name);
+	root_node->setName(name);
+	root_node->setType(domNodeType::NODETYPE_JOINT);
+
+	// Add transform matrix element to joint node
+	domMatrix* mtx_elem = daeSafeCast<domMatrix>(root_node->add("matrix"));
+	mtx_elem->setSid("transform");
+	
+	// Set (local) transform matrix for current joint
+	// Assume identity rotation for joint matrix???
+	LLMatrix4 joint_mtx;
+	joint_mtx.initScale(root->getDefaultScale());
+	joint_mtx.setTranslation(root->getDefaultPosition());
+
+	// Write joint matrix into DOM element value
+	append(mtx_elem->getValue(), joint_mtx);
+
+	// Recurse over child joints
+	for (LLJoint::child_list_t::const_iterator iter = root->mChildren.begin(); iter != root->mChildren.end(); ++iter)
+		addJointNodes(root_node, *iter);
+}
+
 void DAESaver::transformTexCoord(S32 num_vert, LLVector2* coord, LLVector3* positions, LLVector3* normals, LLTextureEntry* te, LLVector3 scale)
 {
 	F32 cosineAngle = cos(te->getRotation());
@@ -931,6 +962,11 @@ bool DAESaver::saveDAE(std::string filename)
 	S32 prim_number = 0;
 	const bool applyTexCoord = gSavedSettings.getBOOL("DAEExportTextureParams");
 
+	// Whether or not the avatar nodes have been added for an avatar rig
+	bool avatar_node_added = false;
+	// TODO: multiple skeletons? merge identical skeletons???
+	std::string skeleton_source_id; // Singleton skeleton
+
 	// Iterate over objects
 	for (obj_info_t::iterator obj_iter = mObjects.begin(); obj_iter != mObjects.end(); ++obj_iter)
 	{
@@ -950,9 +986,11 @@ bool DAESaver::saveDAE(std::string filename)
 		std::vector<F32> uv_data;
 
 		S32 num_faces = obj->getVolume()->getNumVolumeFaces();
+
 		for (S32 face_num = 0; face_num < num_faces; face_num++)
 		{
-			if (skipFace(obj->getTE(face_num))) continue;
+			if (skipFace(obj->getTE(face_num)))
+				continue;
 
 			const LLVolumeFace* face = (LLVolumeFace*)&obj->getVolume()->getVolumeFace(face_num);
 			total_num_vertices += face->mNumVertices;
@@ -961,7 +999,6 @@ bool DAESaver::saveDAE(std::string filename)
 			v4adapt norms(face->mNormals);
 			LLStrider<LLVector4a> skin_weights;
 			skin_weights = face->mWeights;
-			
 
 			LLVector2* newCoord = NULL;
 
@@ -1037,7 +1074,8 @@ bool DAESaver::saveDAE(std::string filename)
 			S32 mat_nr = 0;
 			for (S32 face_num = 0; face_num < num_faces; face_num++)
 			{
-				if (skipFace(obj->getTE(face_num))) continue;
+				if (skipFace(obj->getTE(face_num)))
+					continue;
 				faces.push_back(face_num);
 				std::string matName = objMaterials[mat_nr++].name;
 				addPolygons(mesh, prim_id.c_str(), (matName + "-material").c_str(), obj, &faces);
@@ -1063,22 +1101,42 @@ bool DAESaver::saveDAE(std::string filename)
 				(matrix->getValue()).append(m4.mMatrix[j][i]);
 
 		daeElement* nodeInstance;
+
 		if (export_rigged_mesh && obj->isRiggedMesh())
 		{
 			// Get the skin info
 			LLVOVolume* obj_vov = (LLVOVolume*)obj;
 			const LLMeshSkinInfo* skin_info = obj_vov->getSkinInfo();
 
+			if (!avatar_node_added)
+			{
+				// Try to use the avatar the mesh is rigged to
+				LLVOAvatar* avatar = obj->getAvatarAncestor();
+				// If it is not attached to an avatar, use own avatar for reference
+				if (avatar == NULL)
+					avatar = gAgentAvatarp;
+
+				domNode* avatar_node = daeSafeCast<domNode>(scene->add("node"));
+				avatar_node->setId("Avatar");
+				avatar_node->setName("Avatar");
+				avatar_node->setType(domNodeType::NODETYPE_NODE);
+				LLJoint* root_joint = avatar->mPelvisp; // because yeah
+				addJointNodes(avatar_node, root_joint);
+				skeleton_source_id = root_joint->getName();
+				avatar_node_added = true;
+			}
+			
+
 			// Add a controller + skin for this rigged mesh
 			domController* controller = (domController*)controllersLib->add("controller");
 			std::string controller_id = llformat("%s-%s", prim_id, "skin");
-			controller->setAttribute("id", controller_id.c_str());
+			controller->setId(controller_id.c_str());
 			domSkin* skin = (domSkin*)controller->add("skin");
-			skin->setSource(geom_id.c_str());
+			skin->setSource(("#" + geom_id).c_str());
 
 			// Set skin bind shape matrix
-			domFloat4x4& bind_shape_matrix = ((domSkin::domBind_shape_matrix*)skin->add("bind_shape_matrix"))->getValue();
-			append(bind_shape_matrix, skin_info->mBindShapeMatrix);
+			domSkin::domBind_shape_matrix* bind_shape_matrix = daeSafeCast<domSkin::domBind_shape_matrix>(skin->add("bind_shape_matrix"));
+			append(bind_shape_matrix->getValue(), skin_info->mBindShapeMatrix);
 
 			// Add joints name source to skin (as Name_array)
 			addSource(skin, llformat("%s-%s", controller_id, "joints").c_str(), "JOINT", skin_info->mJointNames);
@@ -1091,8 +1149,10 @@ bool DAESaver::saveDAE(std::string filename)
 			
 			// Geometry of the node
 			nodeInstance = node->add("instance_controller");
-			nodeInstance->setAttribute("url", llformat("#%s-%s", prim_id, "mesh").c_str());
-			domInstance_controller::domSkeleton* skeleton = (domInstance_controller::domSkeleton*)nodeInstance->add("skeleton");
+			nodeInstance->setAttribute("url", ("#" + controller_id).c_str());
+
+			domInstance_controller::domSkeleton* skeleton = daeSafeCast<domInstance_controller::domSkeleton>(nodeInstance->add("skeleton"));
+			skeleton->setValue(("#" + skeleton_source_id).c_str());
 		}
 		else
 		{

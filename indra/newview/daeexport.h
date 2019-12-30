@@ -27,6 +27,7 @@
 
 #include <dom/domElements.h>
 #include "lltextureentry.h"
+#include "lljoint.h"
 
 class LLViewerObject;
 
@@ -101,9 +102,11 @@ private:
 	void addSource(daeElement* mesh, const char* src_id, const char* param_name, const std::vector<F32>& vals);
 	void addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<LLMatrix4>& vals);
 	void addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<std::string> &vals);
-	void append(daeTArray<domFloat> arr, const LLMatrix4& matrix);
+	void append(daeTArray<domFloat>& arr, const LLMatrix4& matrix);
 	void addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLViewerObject* obj, int_list_t* faces_to_include);
 	void addJointsAndWeights(daeElement* skin, const char* geomID, LLViewerObject* obj, int_list_t* faces_to_include);
+	void addJointNodes(daeElement* parent, LLJoint* root);
+	//void addJointNodes(daeElement* parent, LLJoint* root, LLMatrix4 transform_matrix);
 	bool skipFace(LLTextureEntry *te);
 	MaterialInfo getMaterial(LLTextureEntry* te);
 	void getMaterials(LLViewerObject* obj, material_list_t* ret);
