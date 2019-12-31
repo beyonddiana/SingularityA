@@ -1087,20 +1087,10 @@ bool DAESaver::saveDAE(std::string filename)
 		node->setAttribute("id", prim_id.c_str());
 		node->setAttribute("name", prim_id.c_str());
 
-		// Set tranform matrix (node position, rotation and scale)
-		domMatrix* matrix = (domMatrix*)node->add("matrix");
-		LLXform srt;
-		srt.setScale(obj->getScale());
-		srt.setPosition(obj->getRenderPosition());
-		srt.setRotation(obj->getRenderRotation());
-		LLMatrix4 m4;
-		srt.getLocalMat4(m4);
-		m4 *= mRootWorldInvMatrix;
-		for (int i=0; i<4; i++)
-			for (int j=0; j<4; j++)
-				(matrix->getValue()).append(m4.mMatrix[j][i]);
-
 		daeElement* nodeInstance;
+
+		domMatrix* matrix_elem = (domMatrix*)node->add("matrix");
+		LLMatrix4 node_xform_mtx;
 
 		if (export_rigged_mesh && obj->isRiggedMesh())
 		{
@@ -1153,20 +1143,38 @@ bool DAESaver::saveDAE(std::string filename)
 
 			domInstance_controller::domSkeleton* skeleton = daeSafeCast<domInstance_controller::domSkeleton>(nodeInstance->add("skeleton"));
 			skeleton->setValue(("#" + skeleton_source_id).c_str());
+
+			node_xform_mtx = LLMatrix4(); // Identity
+			//node_xform_mtx = skin_info->mBindShapeMatrix;
+			//node_xform_mtx.invert();
 		}
 		else
 		{
 			// Geometry of the node
 			nodeInstance = node->add("instance_geometry");
 			nodeInstance->setAttribute("url", llformat("#%s-%s", prim_id, "mesh").c_str());
+
+			// Construct render TRS matrix -including- scale
+			LLXform node_xform;
+			node_xform.setScale(obj->getScale());
+			node_xform.setPosition(obj->getRenderPosition());
+			node_xform.setRotation(obj->getRenderRotation());
+
+			// Write to matrix
+			node_xform.getLocalMat4(node_xform_mtx);
+			// Apply root world inverse matrix to get relative position/rotation
+			node_xform_mtx *= mRootWorldInvMatrix;
 		}
 
+		// Set tranform matrix (node position, rotation and scale)
+		append(matrix_elem->getValue(), node_xform_mtx);
+
 		// Bind materials
-		daeElement* tq = nodeInstance->add("bind_material technique_common");
+		daeElement* technique_common = nodeInstance->add("bind_material technique_common");
 		for (U32 objMaterial = 0; objMaterial < objMaterials.size(); objMaterial++)
 		{
 			std::string matName = objMaterials[objMaterial].name;
-			daeElement* instanceMaterial = tq->add("instance_material");
+			daeElement* instanceMaterial = technique_common->add("instance_material");
 			instanceMaterial->setAttribute("symbol", (matName + "-material").c_str());
 			instanceMaterial->setAttribute("target", ("#" + matName + "-material").c_str());
 		}
