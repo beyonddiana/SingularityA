@@ -2923,6 +2923,17 @@ class LLAvatarReportAbuse final : public view_listener_t
 // Object backup
 //---------------------------------------------------------------------------
 
+class LLAvatarEnableExport final : public view_listener_t
+{
+	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata) override
+	{
+		std::string control_name = userdata["control"].asString();
+		LLControlVariable* control = gMenuHolder->findControl(control_name);
+		control->setValue(gTKOEnableSpecialFunctionality);
+		return true;
+	}
+};
+
 class LLObjectEnableExport final : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLEvent> event, const LLSD& userdata) override
@@ -10212,6 +10223,7 @@ void initialize_menus()
 	addMenu(new LLAvatarEnableFreezeEject(), "Avatar.EnableFreezeEject");
 	addMenu(new LLAvatarCopyUUID(), "Avatar.CopyUUID");
 	addMenu(new LLAvatarClientUUID(), "Avatar.ClientID");
+	addMenu(new LLAvatarEnableExport(), "Avatar.EnableExport");
 
 	// Object pie menu
 	addMenu(new LLObjectOpen(), "Object.Open");

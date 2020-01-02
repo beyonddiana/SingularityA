@@ -845,9 +845,10 @@ public:
 	S32 				getAttachmentCount(); // Warning: order(N) not order(1) // currently used only by -self
 	//typedef std::map<S32, LLViewerJointAttachment*> attachment_map_t;
 	typedef LLSortedVector<S32, LLViewerJointAttachment*> attachment_map_t;
+	typedef std::vector<std::pair<LLViewerObject*, LLViewerJointAttachment*> > joint_attachment_pair_vector_t;
 	attachment_map_t 								mAttachmentPoints;
 	std::vector<LLPointer<LLViewerObject> > 		mPendingAttachment;
-	std::vector<std::pair<LLViewerObject*,LLViewerJointAttachment*> >	mAttachedObjectsVector;	//A vector of all current attachments for fast iteration.
+	joint_attachment_pair_vector_t	mAttachedObjectsVector;	//A vector of all current attachments for fast iteration.
 
 	//--------------------------------------------------------------------
 	// HUD functions
