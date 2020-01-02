@@ -134,6 +134,23 @@ namespace DAEExportUtil
 		return gTKOEnableSpecialFunctionality || (policy & ep_full_perm) == ep_full_perm;
 	}
 
+	static bool canExportObject(const LLViewerObject* object)
+	{
+		if (gTKOEnableSpecialFunctionality)
+			return true;
+
+		if (object->isSculpted() && !object->isMesh())
+		{
+			const LLSculptParams* sculpt_params = object->getSculptParams();
+			LLUUID sculpt_id = sculpt_params->getSculptTexture();
+			return canExportTexture(sculpt_id);
+		}
+		else
+		{
+			return true;
+		}
+	}
+
 	static bool canExportNode(LLSelectNode* node)
 	{
         if (gTKOEnableSpecialFunctionality)
@@ -147,18 +164,9 @@ namespace DAEExportUtil
 			return false;
 		}
 
+		// We already checked generic permissions
 		// Additionally chack if this is a sculpt
-		LLViewerObject* obj = node->getObject();
-		if (obj->isSculpted() && !obj->isMesh())
-		{
-			const LLSculptParams *sculpt_params = obj->getSculptParams();
-			LLUUID sculpt_id = sculpt_params->getSculptTexture();
-			return canExportTexture(sculpt_id);
-		}
-		else // not sculpt, we already checked generic permissions
-		{
-			return true;
-		}
+		return canExportObject(node->getObject());
 	}
 }
 
@@ -195,23 +203,6 @@ public:
 		mCommitCallbackRegistrar.add("ColladaExport.ExportRiggedMesh",		boost::bind(&ColladaExportFloater::HandleExportRiggedMeshCheck, this, _2));
 
 		LLUICtrlFactory::getInstance()->buildFloater(this, "floater_dae_export.xml");
-
-		addSelectedObjects();
-		if (LLUICtrl* ctrl = findChild<LLUICtrl>("Object Name"))
-		{
-			ctrl->setTextArg("[NAME]", mObjectName);
-		}
-		if (LLUICtrl* ctrl = findChild<LLUICtrl>("Exportable Prims"))
-		{
-			ctrl->setTextArg("[COUNT]", llformat("%d", mSaver.mObjects.size()));
-			ctrl->setTextArg("[TOTAL]", llformat("%d", mTotal));
-		}
-		if (LLUICtrl* ctrl = findChild<LLUICtrl>("Exportable Textures"))
-		{
-			ctrl->setTextArg("[COUNT]", llformat("%d", mNumExportableTextures));
-			ctrl->setTextArg("[TOTAL]", llformat("%d", mNumTextures));
-		}
-		addTexturePreview();
 	}
 
 	virtual ~ColladaExportFloater()
@@ -239,6 +230,25 @@ public:
 		HandleExportRiggedMeshCheck(mExportRiggedMesh->getValue());
 
 		return TRUE;
+	}
+
+	void updateOverview()
+	{
+		if (LLUICtrl* ctrl = findChild<LLUICtrl>("Object Name"))
+		{
+			ctrl->setTextArg("[NAME]", mObjectName);
+		}
+		if (LLUICtrl* ctrl = findChild<LLUICtrl>("Exportable Prims"))
+		{
+			ctrl->setTextArg("[COUNT]", llformat("%d", mSaver.mObjects.size()));
+			ctrl->setTextArg("[TOTAL]", llformat("%d", mTotal));
+		}
+		if (LLUICtrl* ctrl = findChild<LLUICtrl>("Exportable Textures"))
+		{
+			ctrl->setTextArg("[COUNT]", llformat("%d", mNumExportableTextures));
+			ctrl->setTextArg("[TOTAL]", llformat("%d", mNumTextures));
+		}
+		addTexturePreview();
 	}
 
 	void updateTitleProgress()
@@ -300,7 +310,7 @@ public:
 		close();
 	}
 
-	void addSelectedObjects()
+	bool addSelectedObjects()
 	{
 		LLObjectSelectionHandle selection = LLSelectMgr::getInstance()->getSelection();
 
@@ -315,22 +325,82 @@ public:
 			{
 				mTotal++;
 				LLSelectNode* node = *iter;
-				if (!node->getObject()->getVolume() || !DAEExportUtil::canExportNode(node)) continue;
+				if (!node->getObject()->getVolume() || !DAEExportUtil::canExportNode(node))
+					continue;
 				mSaver.add(node->getObject(), node->mName);
 			}
 		}
 
 		if (mSaver.mObjects.empty())
+			return false;
+
+		mSaver.updateTextureInfo();
+		mNumTextures = mSaver.mTextures.size();
+		mNumExportableTextures = getNumExportableTextures();
+		return true;
+	}
+
+private:
+	void try_add_object(const LLViewerObject *object)
+	{
+		if (object->getVolume() && DAEExportUtil::canExportObject(object))
 		{
-			LLNotificationsUtil::add("ExportFailed");
-			close();
+			LLNameValue* title = object->getNVPair("Title");
+			std::string object_name;
+			if (title)
+				object_name = title->getString();
+			else
+				object_name = "Object";
+			mSaver.add(object, object_name);
 		}
-		else
+	}
+public:
+	bool addSelectedAvatar()
+	{
+		LLObjectSelectionHandle selection = LLSelectMgr::getInstance()->getSelection();
+		if (selection)
 		{
-			mSaver.updateTextureInfo();
-			mNumTextures = mSaver.mTextures.size();
-			mNumExportableTextures = getNumExportableTextures();
+			LLViewerObject* primary_object = selection->getPrimaryObject();
+			if (primary_object && primary_object->isAvatar())
+			{
+				LLVOAvatar* avatar = (LLVOAvatar*)primary_object;
+
+				mSaver.mRootWorldInvMatrix = LLMatrix4(avatar->getRenderMatrix().getF32ptr());
+				mSaver.mRootWorldInvMatrix.invert();
+				mObjectName = avatar->getFullname();
+				mTotal = 0;
+
+				for (LLVOAvatar::joint_attachment_pair_vector_t::const_iterator iter = avatar->mAttachedObjectsVector.begin();
+					iter != avatar->mAttachedObjectsVector.end();
+					++iter)
+				{
+					LLViewerObject* object = iter->first;
+					mTotal++;
+					try_add_object(object);
+					LLViewerObject::const_child_list_t& children = object->getChildren();
+					for (LLViewerObject::const_child_list_t::const_iterator child_iter = children.begin();
+						child_iter != children.end();
+						++child_iter)
+					{
+						mTotal++;
+						try_add_object(*child_iter);
+					}
+				}
+			}
+			else
+			{
+				return addSelectedObjects();
+			}
 		}
+
+		if (mSaver.mObjects.empty())
+			return false;
+
+		mSaver.updateTextureInfo();
+		mNumTextures = mSaver.mTextures.size();
+		mNumExportableTextures = getNumExportableTextures();
+
+		return true;
 	}
 
 	S32 getNumExportableTextures()
@@ -1339,13 +1409,44 @@ class DAESaveSelectedObjects : public view_listener_t
 {
 	bool handleEvent(LLPointer<LLOldEvents::LLEvent> event, const LLSD& userdata)
 	{
-		(new ColladaExportFloater())->open();
+		ColladaExportFloater* floater = new ColladaExportFloater();
+		if (floater->addSelectedObjects())
+		{
+			floater->updateOverview();
+			floater->open();
+		}
+		else
+		{
+			LLNotificationsUtil::add("ExportFailed");
+			floater->close();
+		}
 		return true;
 	}
 };
+
+class DAESaveSelectedAvatar : public view_listener_t
+{
+	bool handleEvent(LLPointer<LLOldEvents::LLEvent> event, const LLSD& userdata)
+	{
+		ColladaExportFloater* floater = new ColladaExportFloater();
+		if (floater->addSelectedAvatar())
+		{
+			floater->updateOverview();
+			floater->open();
+		}
+		else
+		{
+			LLNotificationsUtil::add("ExportFailed");
+			floater->close();
+		}
+		return true;
+	}
+};
+
 
 void addMenu(view_listener_t* menu, const std::string& name);
 void add_dae_listeners() // Called in llviewermenu with other addMenu calls, function linked against
 {
 	addMenu(new DAESaveSelectedObjects(), "Object.SaveAsDAE");
+	addMenu(new DAESaveSelectedAvatar(), "Avatar.SaveAsDAE");
 }

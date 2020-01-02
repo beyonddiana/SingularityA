@@ -99,7 +99,7 @@
     <menu_item_call enabled="true" label="Reset Skel" mouse_opaque="true" name="Reset Skeleton">
       <on_click function="Avatar.ResetSkeleton" />
     </menu_item_call>
-    <menu_item_call enabled="true" label="Reset Anims" mouse_opaque="true" name="Reset Skeleton And Animations">
+    <menu_item_call enabled="true" label="Reset Anims" mouse_opaque="true" name="Full Reset">
       <on_click function="Avatar.ResetSkeletonAndAnimations" />
     </menu_item_call>
     <menu_item_call enabled="true" hidden="false" label="Anims..." mouse_opaque="true"
@@ -120,9 +120,15 @@
     <menu_item_call enabled="true" label="Copy UUID" mouse_opaque="true" name="CopyUUID">
       <on_click function="Avatar.CopyUUID" />
     </menu_item_call>
-    <menu_item_call label="Save OBJ..." mouse_opaque="true" name="Save OBJ...">
-      <on_click function="Avatar.SaveAsOBJ" />
-    </menu_item_call>
+    <pie_menu label="Export" name="Export Menu">
+      <menu_item_call label="OBJ..." mouse_opaque="true" name="Save OBJ...">
+        <on_click function="Avatar.SaveAsOBJ" />
+      </menu_item_call>
+      <menu_item_call label="DAE..." mouse_opaque="true" name="Save DAE...">
+        <on_click function="Avatar.SaveAsDAE" />
+        <on_enable function="Avatar.EnableExport" />
+      </menu_item_call>
+    </pie_menu>
   </pie_menu>
   <menu_item_call enabled="true" label="Appearance..." name="Appearance...">
     <on_click function="ShowFloater" userdata="appearance" />
