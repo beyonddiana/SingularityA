@@ -1121,10 +1121,10 @@ bool DAESaver::saveDAE(std::string filename)
 		// Add the <vertices> element
 		{
 			daeElement*	verticesNode = mesh->add("vertices");
-			verticesNode->setAttribute("id", llformat("%s-%s", prim_id, "vertices").c_str());
+			verticesNode->setAttribute("id", llformat("%s-%s", geom_id, "vertices").c_str());
 			daeElement* verticesInput = verticesNode->add("input");
 			verticesInput->setAttribute("semantic", "POSITION");
-			verticesInput->setAttribute("source", llformat("#%s-%s", prim_id, "positions").c_str());
+			verticesInput->setAttribute("source", llformat("#%s-%s", geom_id, "positions").c_str());
 		}
 
 		material_list_t objMaterials;
@@ -1150,7 +1150,7 @@ bool DAESaver::saveDAE(std::string filename)
 					continue;
 				faces.push_back(face_num);
 				std::string matName = objMaterials[mat_nr++].name;
-				addPolygons(mesh, prim_id.c_str(), (matName + "-material").c_str(), obj, &faces);
+				addPolygons(mesh, geom_id.c_str(), (matName + "-material").c_str(), obj, &faces);
 			}
 		}
 
@@ -1223,7 +1223,7 @@ bool DAESaver::saveDAE(std::string filename)
 		{
 			// Geometry of the node
 			nodeInstance = node->add("instance_geometry");
-			nodeInstance->setAttribute("url", llformat("#%s-%s", prim_id, "mesh").c_str());
+			nodeInstance->setAttribute("url", ("#" + geom_id).c_str());
 
 			// Construct render TRS matrix -including- scale
 			LLXform node_xform;
