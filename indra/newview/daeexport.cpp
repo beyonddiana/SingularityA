@@ -1015,11 +1015,12 @@ bool DAESaver::saveDAE(std::string filename)
 	daeElement* geomLib = root->add("library_geometries");
 	daeElement* effects = root->add("library_effects");
 	daeElement* materials = root->add("library_materials");
-	daeElement* scene = root->add("library_visual_scenes visual_scene");
 
 	daeElement* controllersLib = NULL;
 	if (export_rigged_mesh)
 		controllersLib = root->add("library_controllers");
+
+	daeElement* scene = root->add("library_visual_scenes visual_scene");
 
 	scene->setAttribute("id", "Scene");
 	scene->setAttribute("name", "Scene");
