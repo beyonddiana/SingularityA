@@ -147,7 +147,7 @@ bool get_dom_sources(const domInputLocalOffset_Array& inputs, S32& pos_offset, S
 	return true;
 }
 
-LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domTrianglesRef& tri)
+LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domTrianglesRef& tri, LLMatrix4 xform)
 {
 	LLVolumeFace face;
 	std::vector<LLVolumeFace::VertexData> verts;
@@ -199,8 +199,12 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 		}
 	}
 
-	face.mExtents[0].set(v[0], v[1], v[2]);
-	face.mExtents[1].set(v[0], v[1], v[2]);
+	{
+		LLVector4 starting_point = LLVector4(v[0], v[1], v[2]);
+		starting_point = starting_point * xform;
+		face.mExtents[0].loadua(starting_point.mV);
+		face.mExtents[1].loadua(starting_point.mV);
+	}
 
 
 	LLVolumeFace::VertexMapData::PointMap point_map;
@@ -219,9 +223,14 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 				return LLModel::BAD_ELEMENT;
 			}
 
-			cv.setPosition(LLVector4a(v[idx[i+pos_offset]*3+0],
-								v[idx[i+pos_offset]*3+1],
-								v[idx[i+pos_offset]*3+2]));
+			LLVector4 position = LLVector4(
+				v[idx[i + pos_offset] * 3 + 0],
+				v[idx[i + pos_offset] * 3 + 1],
+				v[idx[i + pos_offset] * 3 + 2]);
+			position = position * xform;
+			LLVector4a position_v4a;
+			position_v4a.loadua(position.mV);
+			cv.setPosition(position_v4a);
 
 			if (!cv.getPosition().isFinite3())
 			{
@@ -263,9 +272,14 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 				return LLModel::BAD_ELEMENT;
 			}
 
-			cv.setNormal(LLVector4a(n[idx[i+norm_offset]*3+0],
-								n[idx[i+norm_offset]*3+1],
-								n[idx[i+norm_offset]*3+2]));
+			LLVector4 normal = LLVector4(
+				n[idx[i + norm_offset] * 3 + 0],
+				n[idx[i + norm_offset] * 3 + 1],
+				n[idx[i + pos_offset] * 3 + 2]);
+			normal = normal * xform;
+			LLVector4a normal_v4a;
+			normal_v4a.loadua(normal.mV);
+			cv.setNormal(normal_v4a);
 
 			if (!cv.getNormal().isFinite3())
 			{
@@ -391,7 +405,7 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 	return LLModel::NO_ERRORS ;
 }
 
-LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domPolylistRef& poly)
+LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domPolylistRef& poly, LLMatrix4 xform)
 {
 	domPRef p = poly->getP();
 	domListOfUInts& idx = p->getValue();
@@ -476,9 +490,14 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 					return LLModel::BAD_ELEMENT;
 				}
 
-				cv.getPosition().set(v[idx[cur_idx+pos_offset]*3+0],
-									v[idx[cur_idx+pos_offset]*3+1],
-									v[idx[cur_idx+pos_offset]*3+2]);
+				LLVector4 position = LLVector4(
+					v[idx[cur_idx + pos_offset] * 3 + 0],
+					v[idx[cur_idx + pos_offset] * 3 + 1],
+					v[idx[cur_idx + pos_offset] * 3 + 2]);
+				position = position * xform;
+				LLVector4a position_v4a;
+				position_v4a.loadua(position.mV);
+				cv.setPosition(position_v4a);
 
 				if (!cv.getPosition().isFinite3())
 				{
@@ -520,9 +539,14 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 					return LLModel::BAD_ELEMENT;
 				}
 
-				cv.getNormal().set(n[idx[cur_idx+norm_offset]*3+0],
-									n[idx[cur_idx+norm_offset]*3+1],
-									n[idx[cur_idx+norm_offset]*3+2]);
+				LLVector4 normal = LLVector4(
+					n[idx[cur_idx + norm_offset] * 3 + 0],
+					n[idx[cur_idx + norm_offset] * 3 + 1],
+					n[idx[cur_idx + pos_offset] * 3 + 2]);
+				normal = normal * xform;
+				LLVector4a normal_v4a;
+				normal_v4a.loadua(normal.mV);
+				cv.setNormal(normal_v4a);
 
 				if (!cv.getNormal().isFinite3())
 				{
@@ -679,7 +703,7 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 	return LLModel::NO_ERRORS ;
 }
 
-LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domPolygonsRef& poly)
+LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domPolygonsRef& poly, LLMatrix4 xform)
 {
 	LLVolumeFace face;
 	std::vector<U16> indices;
@@ -784,9 +808,16 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 			{
 				U32 v_idx = idx[j*stride+v_offset]*3;
 				v_idx = llclamp(v_idx, (U32) 0, (U32) v->getCount());
-				vert.getPosition().set(v->get(v_idx),
-								v->get(v_idx+1),
-								v->get(v_idx+2));
+
+				LLVector4 position = LLVector4(
+					v->get(v_idx),
+					v->get(v_idx + 1),
+					v->get(v_idx + 2));
+
+				position = position * xform;
+				LLVector4a position_v4a;
+				position_v4a.loadua(position.mV);
+				vert.setPosition(position_v4a);
 
 				if (!vert.getPosition().isFinite3())
 				{
@@ -802,9 +833,15 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 			{
 				U32 n_idx = idx[j*stride+n_offset]*3;
 				n_idx = llclamp(n_idx, (U32) 0, (U32) n->getCount());
-				vert.getNormal().set(n->get(n_idx),
-								n->get(n_idx+1),
-								n->get(n_idx+2));
+
+				LLVector4 normal = LLVector4(
+					n->get(n_idx),
+					n->get(n_idx + 1),
+					n->get(n_idx + 2));
+				normal = normal * xform;
+				LLVector4a normal_v4a;
+				normal_v4a.loadua(normal.mV);
+				vert.setNormal(normal_v4a);
 
 				if (!vert.getNormal().isFinite3())
 				{
@@ -934,7 +971,8 @@ LLDAELoader::LLDAELoader(
 	std::map<std::string, std::string>&		jointAliasMap,
 	U32					maxJointsPerMesh,
 	U32					modelLimit,
-	bool					preprocess)
+	bool					preprocess,
+	const ImportSettings& settings)
 : LLModelLoader(
 		filename,
 		lod,
@@ -948,7 +986,8 @@ LLDAELoader::LLDAELoader(
 		jointAliasMap,
 		maxJointsPerMesh),
 	mGeneratedModelLimit(modelLimit),
-	mPreprocessDAE(preprocess)
+	mPreprocessDAE(preprocess),
+	mImportSettings(settings)
 {
 }
 
@@ -967,6 +1006,49 @@ struct ModelSort
 		return LLStringUtil::compareInsensitive(lhs->mLabel, rhs->mLabel) < 0;
 	}
 };
+
+// static
+void LLDAELoader::getRootMatrix(daeElement* dom_root, LLMatrix4& xform_out)
+{
+	//get unit scale
+	xform_out.setIdentity();
+
+	domAsset::domUnit* unit = daeSafeCast<domAsset::domUnit>(dom_root->getDescendant(daeElement::matchType(domAsset::domUnit::ID())));
+
+	if (unit)
+	{
+		F32 meter = unit->getMeter();
+		xform_out.mMatrix[0][0] = meter;
+		xform_out.mMatrix[1][1] = meter;
+		xform_out.mMatrix[2][2] = meter;
+	}
+
+	//get up axis rotation
+	LLMatrix4 rotation;
+
+	domUpAxisType up = UPAXISTYPE_Y_UP;  // default is Y_UP
+	domAsset::domUp_axis* up_axis =
+		daeSafeCast<domAsset::domUp_axis>(dom_root->getDescendant(daeElement::matchType(domAsset::domUp_axis::ID())));
+
+	if (up_axis)
+	{
+		up = up_axis->getValue();
+	}
+
+	if (up == UPAXISTYPE_X_UP)
+	{
+		rotation.initRotation(0.0f, 90.0f * DEG_TO_RAD, 0.0f);
+	}
+	else if (up == UPAXISTYPE_Y_UP)
+	{
+		rotation.initRotation(90.0f * DEG_TO_RAD, 0.0f, 0.0f);
+	}
+
+	rotation *= xform_out;
+	xform_out = rotation;
+
+	xform_out.condition();
+}
 
 bool LLDAELoader::OpenFile(const std::string& filename)
 {
@@ -1040,44 +1122,7 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 		}
 	}
 
-	//get unit scale
-	mTransform.setIdentity();
-
-	domAsset::domUnit* unit = daeSafeCast<domAsset::domUnit>(root->getDescendant(daeElement::matchType(domAsset::domUnit::ID())));
-
-	if (unit)
-	{
-		F32 meter = unit->getMeter();
-		mTransform.mMatrix[0][0] = meter;
-		mTransform.mMatrix[1][1] = meter;
-		mTransform.mMatrix[2][2] = meter;
-	}
-
-	//get up axis rotation
-	LLMatrix4 rotation;
-
-	domUpAxisType up = UPAXISTYPE_Y_UP;  // default is Y_UP
-	domAsset::domUp_axis* up_axis =
-	daeSafeCast<domAsset::domUp_axis>(root->getDescendant(daeElement::matchType(domAsset::domUp_axis::ID())));
-
-	if (up_axis)
-	{
-		up = up_axis->getValue();
-	}
-
-	if (up == UPAXISTYPE_X_UP)
-	{
-		rotation.initRotation(0.0f, 90.0f * DEG_TO_RAD, 0.0f);
-	}
-	else if (up == UPAXISTYPE_Y_UP)
-	{
-		rotation.initRotation(90.0f * DEG_TO_RAD, 0.0f, 0.0f);
-	}
-
-	rotation *= mTransform;
-	mTransform = rotation;
-
-	mTransform.condition();	
+	getRootMatrix(root, mTransform);
 	
 	U32 submodel_limit = count > 0 ? mGeneratedModelLimit/count : 0;
 	for (daeInt idx = 0; idx < count; ++idx)
@@ -1266,6 +1311,8 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 			skin_info.mBindShapeMatrix = trans;							
 		}
 
+		// Build the joint to node mapping array and update joint aliases (mJointMap)
+		buildJointToNodeMappingFromScene(root);
 
 		//Some collada setup for accessing the skeleton
 		U32 skeleton_count = dae->getDatabase()->getElementCount( NULL, "skeleton" );
@@ -1312,11 +1359,16 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 					if ( isNodeAJoint( pNode ) )
 					{
 						processJointNode( pNode, mJointList );
+						// Post-process joint transforms based on joint node hierarchy.
+						// This will apply the scene-wide transform (mTransform) to all
+						// of the node's matrices in the joint-matrix mapping.
+						postProcessJointNodes(pNode, mJointList);
 					}
 				}
 			}
 		}
 		else
+		{
 			//Has one or more skeletons
 			for (std::vector<domInstance_controller::domSkeleton*>::iterator skel_it = skeletons.begin();
 				skel_it != skeletons.end(); ++skel_it)
@@ -1324,65 +1376,65 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 				domInstance_controller::domSkeleton* pSkeleton = *skel_it;
 				//Get the root node of the skeleton
 				daeElement* pSkeletonRootNode = pSkeleton->getValue().getElement();
-				if ( pSkeletonRootNode )
+				if (pSkeletonRootNode)
 				{
 					//Once we have the root node - start acccessing it's joint components
 					const int jointCnt = mJointMap.size();
-					JointMap :: const_iterator jointIt = mJointMap.begin();
+					JointMap::const_iterator jointIt = mJointMap.begin();
 
 					//Loop over all the possible joints within the .dae - using the allowed joint list in the ctor.
-					for ( int i=0; i<jointCnt; ++i, ++jointIt )
+					for (int i = 0; i < jointCnt; ++i, ++jointIt)
 					{
 						//Build a joint for the resolver to work with
-						char str[64]={0};
-						sprintf(str,"./%s",(*jointIt).first.c_str() );
+						char str[64] = { 0 };
+						sprintf(str, "./%s", (*jointIt).first.c_str());
 						//LL_WARNS()<<"Joint "<< str <<LL_ENDL;
 
 						//Setup the resolver
-						daeSIDResolver resolver( pSkeletonRootNode, str );
+						daeSIDResolver resolver(pSkeletonRootNode, str);
 
 						//Look for the joint
-						domNode* pJoint = daeSafeCast<domNode>( resolver.getElement() );
-						if ( pJoint )
+						domNode* pJoint = daeSafeCast<domNode>(resolver.getElement());
+						if (pJoint)
 						{
 							// FIXME this has a lot of overlap with processJointNode(), would be nice to refactor.
 
 							//Pull out the translate id and store it in the jointTranslations map
-							daeSIDResolver jointResolverA( pJoint, "./translate" );
-							domTranslate* pTranslateA = daeSafeCast<domTranslate>( jointResolverA.getElement() );
-							daeSIDResolver jointResolverB( pJoint, "./location" );
-							domTranslate* pTranslateB = daeSafeCast<domTranslate>( jointResolverB.getElement() );
+							daeSIDResolver jointResolverA(pJoint, "./translate");
+							domTranslate* pTranslateA = daeSafeCast<domTranslate>(jointResolverA.getElement());
+							daeSIDResolver jointResolverB(pJoint, "./location");
+							domTranslate* pTranslateB = daeSafeCast<domTranslate>(jointResolverB.getElement());
 
 							LLMatrix4 workingTransform;
 
 							//Translation via SID
-							if ( pTranslateA )
+							if (pTranslateA)
 							{
-								extractTranslation( pTranslateA, workingTransform );
+								extractTranslation(pTranslateA, workingTransform);
 							}
 							else
 							{
-								if ( pTranslateB )
+								if (pTranslateB)
 								{
-									extractTranslation( pTranslateB, workingTransform );
+									extractTranslation(pTranslateB, workingTransform);
 								}
 								else
 								{
 									//Translation via child from element
-									daeElement* pTranslateElement = getChildFromElement( pJoint, "translate" );
-									if ( pTranslateElement && pTranslateElement->typeID() != domTranslate::ID() )
+									daeElement* pTranslateElement = getChildFromElement(pJoint, "translate");
+									if (pTranslateElement && pTranslateElement->typeID() != domTranslate::ID())
 									{
-										LL_WARNS()<< "The found element is not a translate node" <<LL_ENDL;
+										LL_WARNS() << "The found element is not a translate node" << LL_ENDL;
 										missingSkeletonOrScene = true;
 									}
 									else
-										if ( pTranslateElement )
+										if (pTranslateElement)
 										{
-											extractTranslationViaElement( pTranslateElement, workingTransform );
+											extractTranslationViaElement(pTranslateElement, workingTransform);
 										}
 										else
 										{
-											extractTranslationViaSID( pJoint, workingTransform );
+											extractTranslationViaSID(pJoint, workingTransform);
 										}
 
 								}
@@ -1393,13 +1445,19 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 						}
 					}
 
-				//If anything failed in regards to extracting the skeleton, joints or translation id,
-				//mention it
-				if ( missingSkeletonOrScene  )
-				{
-					LL_WARNS()<< "Partial jointmap found in asset - did you mean to just have a partial map?" << LL_ENDL;
-				}
-			}//got skeleton?
+					//If anything failed in regards to extracting the skeleton, joints or translation id,
+					//mention it
+					if (missingSkeletonOrScene)
+					{
+						LL_WARNS() << "Partial jointmap found in asset - did you mean to just have a partial map?" << LL_ENDL;
+					}
+
+					// Post-process joint transforms based on joint node hierarchy.
+					// This will apply the scene-wide transform (mTransform) to all
+					// of the node's matrices in the joint-matrix mapping.
+					postProcessJointsParent(pSkeletonRootNode, mJointList);
+				}//got skeleton?
+			}
 		}
 
 
@@ -1470,10 +1528,20 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 						domListOfFloats& transform = t->getValue();
 						S32 count = transform.getCount()/16;
 
+						LLMatrix4 inverse_root_mtx;
+						if (mImportSettings.applyRootTransform)
+						{
+							inverse_root_mtx = mTransform;
+							inverse_root_mtx.invert();
+						}
+
+						LLMatrix4 mat;
+						LLMatrix4 modified_mat;
+
+						std::vector<LLMatrix4>& inv_bind_matrices = model->mSkinInfo.mInvBindMatrix;
+
 						for (S32 k = 0; k < count; ++k)
 						{
-							LLMatrix4 mat;
-
 							for (int i = 0; i < 4; i++)
 							{
 								for(int j = 0; j < 4; j++)
@@ -1481,7 +1549,21 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 									mat.mMatrix[i][j] = transform[k*16 + i + j*4];
 								}
 							}
-							model->mSkinInfo.mInvBindMatrix.push_back(mat);
+
+							if (mImportSettings.applyRootTransform)
+							{
+								// Apply inverse scene-wide (root) transform before the inverse bind matrix,
+								// then re-apply the root transform
+								modified_mat = inverse_root_mtx;
+								modified_mat *= mat;
+								modified_mat *= mTransform;
+								inv_bind_matrices.push_back(modified_mat);
+							}
+							else
+							{
+								mat *= mTransform;
+								inv_bind_matrices.push_back(mat);
+							}
 						}
 					}
 				}
@@ -1491,8 +1573,7 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 		//Now that we've parsed the joint array, let's determine if we have a full rig
 		//(which means we have all the joint sthat are required for an avatar versus
 		//a skinned asset attached to a node in a file that contains an entire skeleton,
-		//but does not use the skeleton).						
-		buildJointToNodeMappingFromScene( root );
+		//but does not use the skeleton).						;
 		critiqueRigForUploadApplicability( model->mSkinInfo.mJointNames );
 
 		if ( !missingSkeletonOrScene )
@@ -1594,7 +1675,14 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 
 								LLVector3 v(pos[j], pos[j+1], pos[j+2]);
 
-								//transform from COLLADA space to volume space
+								// DOM meshes saved into the model are transformed by the DOM root matrix by addVolumeFacesFromDomMesh
+								// We transform these points again as keys for mSkinWeights so that the vertex positions align perfectly
+								// with volume face vertices.
+								// This has to be applied to world space, not the normalized volume space.
+								if(mImportSettings.applyRootTransform)
+									v = v * mTransform;
+
+								//transform from COLLADA space to (normalized) volume space
 								v = v * inverse_normalized_transformation;
 
 								model->mPosition.push_back(v);
@@ -1678,17 +1766,20 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 						}
 					}
 
-					model->mSkinWeights[model->mPosition[vc_idx]] = wght;
+					LLVector3& position = model->mPosition[vc_idx];
+					model->mSkinWeights[position] = wght;
 				}
 			}
-
 		}
 		//add instance to scene for this model
 
 		LLMatrix4 transformation;
 		transformation.initScale(mesh_scale_vector);
 		transformation.setTranslation(mesh_translation_vector);
-		transformation *= mTransform;
+
+		// Not applying root transformation to geometry, apply to model transform instead
+		if (!mImportSettings.applyRootTransform)
+			transformation *= mTransform;
 
 		std::map<std::string, LLImportMaterial> materials;
 		for (U32 i = 0; i < model->mMaterialList.size(); ++i)
@@ -1699,7 +1790,6 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 		stretch_extents(model, transformation, mExtents[0], mExtents[1], mFirstTransform);
 	}
 }
-
 //-----------------------------------------------------------------------------
 // buildJointToNodeMappingFromScene()
 //-----------------------------------------------------------------------------
@@ -1729,6 +1819,8 @@ void LLDAELoader::processJointToNodeMapping( domNode* pNode )
 		if (!nodeName.empty())
 		{
 			mJointsFromNode.push_front(pNode->getName());
+			// Alias joint node SIDs to joint names for compatibility
+			mJointMap[pNode->getSid()] = mJointMap[pNode->getName()];
 		}
 		//2. Handle the kiddo's
 		processChildJoints(pNode);
@@ -1917,10 +2009,11 @@ void LLDAELoader::extractTranslationViaSID( daeElement* pElement, LLMatrix4& tra
 		LL_WARNS() << "Element is nonexistent - empty/unsupported node." << LL_ENDL;
 	}
 }
+
 //-----------------------------------------------------------------------------
 // processJointNode()
 //-----------------------------------------------------------------------------
-void LLDAELoader::processJointNode( domNode* pNode, JointTransformMap& jointTransforms )
+void LLDAELoader::processJointNode( domNode* pNode, JointTransformMap& jointTransforms)
 {
 	if (pNode->getName() == NULL)
 	{
@@ -1998,6 +2091,60 @@ void LLDAELoader::processJointNode( domNode* pNode, JointTransformMap& jointTran
 		{
 			processJointNode(pChildNode, jointTransforms);
 		}
+	}
+}
+
+void LLDAELoader::postProcessJointsParent(daeElement* parent, JointTransformMap& jointTransforms)
+{
+	domNode* parent_node = daeSafeCast<domNode>(parent);
+	if (parent_node)
+	{
+		postProcessJointNodes(parent_node, jointTransforms);
+	}
+	else
+	{
+		daeTArray< daeSmartRef<daeElement> > children = parent->getChildren();
+		S32 number_of_children = children.getCount();
+		for (S32 i = 0; i < number_of_children; ++i)
+			postProcessJointsParent(children[i], jointTransforms);
+	}
+}
+
+void LLDAELoader::postProcessJointNodes(domNode* node, JointTransformMap& jointTransforms)
+{
+	if (node->getName() == NULL)
+	{
+		LL_WARNS() << "nameless node, can't process" << LL_ENDL;
+	}
+	else
+	{
+
+		JointTransformMap::const_iterator i = jointTransforms.find(node->getName());
+		if (i == jointTransforms.end())
+		{
+			LL_WARNS() << "node not found in joint transforms map" << LL_ENDL;
+		}
+		else
+		{
+			// Joint was found in transform map
+			// Apply scene transform to positions
+			LLMatrix4 modified_local_mtx;
+			modified_local_mtx *= i->second;
+			modified_local_mtx *= mTransform;
+			jointTransforms[node->getName()] = modified_local_mtx;
+		}
+	}
+	daeTArray< daeSmartRef<daeElement> > children = node->getChildren();
+	S32 number_of_children = children.getCount();
+	for (S32 i = 0; i < number_of_children; ++i)
+	{
+		domNode* child_node = daeSafeCast<domNode>(children[i]);
+		if (!child_node)
+		{
+			LL_WARNS() << "encountered non-node child of joint node hierarchy, continuing" << LL_ENDL;
+			continue;
+		}
+		postProcessJointNodes(child_node, jointTransforms);
 	}
 }
 
@@ -2453,16 +2600,29 @@ LLColor4 LLDAELoader::getDaeColor(daeElement* element)
 	return value;
 }
 
-bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
+bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel, domMesh* mesh, const ImportSettings& settings)
 {
 	LLModel::EModelStatus status = LLModel::NO_ERRORS;
 	domTriangles_Array& tris = mesh->getTriangles_array();
+
+	LLMatrix4 xform;
+	if (settings.applyRootTransform)
+	{
+		// Get the DOM root matrix and apply it to the geometry
+		daeDocument* doc = mesh->getDocument();
+		daeElement* dom_root = doc->getDomRoot();
+		getRootMatrix(dom_root, xform);
+	}
+	else
+	{
+		xform.setIdentity();
+	}
 
 	for (U32 i = 0; i < tris.getCount(); ++i)
 	{
 		domTrianglesRef& tri = tris.get(i);
 
-		status = load_face_from_dom_triangles(pModel->getVolumeFaces(), pModel->getMaterialList(), tri);
+		status = load_face_from_dom_triangles(pModel->getVolumeFaces(), pModel->getMaterialList(), tri, xform);
 		pModel->mStatus = status;
 		if(status != LLModel::NO_ERRORS)
 		{
@@ -2475,7 +2635,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
 	for (U32 i = 0; i < polys.getCount(); ++i)
 	{
 		domPolylistRef& poly = polys.get(i);
-		status = load_face_from_dom_polylist(pModel->getVolumeFaces(), pModel->getMaterialList(), poly);
+		status = load_face_from_dom_polylist(pModel->getVolumeFaces(), pModel->getMaterialList(), poly, xform);
 
 		if(status != LLModel::NO_ERRORS)
 		{
@@ -2489,7 +2649,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
 	for (U32 i = 0; i < polygons.getCount(); ++i)
 	{
 		domPolygonsRef& poly = polygons.get(i);
-		status = load_face_from_dom_polygons(pModel->getVolumeFaces(), pModel->getMaterialList(), poly);
+		status = load_face_from_dom_polygons(pModel->getVolumeFaces(), pModel->getMaterialList(), poly, xform);
 
 		if(status != LLModel::NO_ERRORS)
 		{
@@ -2502,12 +2662,12 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
 }
 
 //static 
-LLModel* LLDAELoader::loadModelFromDomMesh(domMesh *mesh)
+LLModel* LLDAELoader::loadModelFromDomMesh(domMesh *mesh, const ImportSettings& settings)
 {
 	LLVolumeParams volume_params;
 	volume_params.setType(LL_PCODE_PROFILE_SQUARE, LL_PCODE_PATH_LINE);
 	LLModel* ret = new LLModel(volume_params, 0.f); 
-	createVolumeFacesFromDomMesh(ret, mesh);
+	createVolumeFacesFromDomMesh(ret, mesh, settings);
     if (ret->mLabel.empty())
     {
 	    ret->mLabel = getElementLabel(mesh);
@@ -2539,7 +2699,7 @@ bool LLDAELoader::loadModelsFromDomMesh(domMesh* mesh, std::vector<LLModel*>& mo
 
 	// Get the whole set of volume faces
 	//
-	addVolumeFacesFromDomMesh(ret, mesh);
+	addVolumeFacesFromDomMesh(ret, mesh, mImportSettings);
 
 	U32 volume_faces = ret->getNumVolumeFaces();
 
@@ -2606,13 +2766,13 @@ bool LLDAELoader::loadModelsFromDomMesh(domMesh* mesh, std::vector<LLModel*>& mo
 	return true;
 }
 
-bool LLDAELoader::createVolumeFacesFromDomMesh(LLModel* pModel, domMesh* mesh)
+bool LLDAELoader::createVolumeFacesFromDomMesh(LLModel* pModel, domMesh* mesh, const LLDAELoader::ImportSettings& settings)
 {
 	if (mesh)
 	{
 		pModel->ClearFacesAndMaterials();
 
-		addVolumeFacesFromDomMesh(pModel, mesh);
+		addVolumeFacesFromDomMesh(pModel, mesh, settings);
 
 		if (pModel->getNumVolumeFaces() > 0)
 		{

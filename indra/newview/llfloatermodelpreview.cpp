@@ -1835,6 +1835,9 @@ void LLModelPreview::loadModel(std::string filename, S32 lod, bool force_disable
 	std::map<std::string, std::string> joint_alias_map;
 	getJointAliases(joint_alias_map);
 
+	LLDAELoader::ImportSettings settings;
+	settings.applyRootTransform = gSavedSettings.getBOOL("DAEImporterApplyRootTransform");
+
 	mModelLoader = new LLDAELoader(
 		filename,
 		lod, 
@@ -1848,7 +1851,8 @@ void LLModelPreview::loadModel(std::string filename, S32 lod, bool force_disable
 		joint_alias_map,
 		LLSkinningUtil::getMaxJointCount(),
 		gSavedSettings.getU32("ImporterModelLimit"),
-		gSavedSettings.getBOOL("ImporterPreprocessDAE"));
+		gSavedSettings.getBOOL("ImporterPreprocessDAE"),
+		settings);
 
 	if (force_disable_slm)
 	{

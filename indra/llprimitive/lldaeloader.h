@@ -42,6 +42,15 @@ class domMesh;
 class LLDAELoader : public LLModelLoader
 {
 public:
+
+	struct ImportSettings
+	{
+		bool applyRootTransform;
+		ImportSettings() :
+			applyRootTransform(true)
+		{ }
+	};
+
 	typedef std::map<std::string, LLImportMaterial>							material_map;
 	typedef std::map<daeElement*, std::vector<LLPointer<LLModel> > >	dae_model_map;
 	dae_model_map	mModelsMap;
@@ -59,13 +68,14 @@ public:
 		std::map<std::string, std::string>&	jointAliasMap,
 		U32									maxJointsPerMesh,
 		U32									modelLimit,
-		bool								preprocess);
+		bool								preprocess,
+		const LLDAELoader::ImportSettings& settings);
 	virtual ~LLDAELoader() ;
 
+	static void getRootMatrix(daeElement* dom_root, LLMatrix4& xform_out);
 	virtual bool OpenFile(const std::string& filename);
 
 protected:
-
 	void processElement(daeElement* element, bool& badElement, DAE* dae);
 	void processDomModel(LLModel* model, DAE* dae, daeElement* pRoot, domMesh* mesh, domSkin* skin);
 
@@ -76,7 +86,9 @@ protected:
 	daeElement* getChildFromElement( daeElement* pElement, std::string const & name );
 	
 	bool isNodeAJoint( domNode* pNode );
-	void processJointNode( domNode* pNode, std::map<std::string,LLMatrix4>& jointTransforms );
+	void processJointNode(domNode* pNode, JointTransformMap& jointTransforms);
+	void postProcessJointsParent(daeElement* parent, JointTransformMap& jointTransforms);
+	void postProcessJointNodes(domNode* node, JointTransformMap& jointTransforms);
 	void extractTranslation( domTranslate* pTranslate, LLMatrix4& transform );
 	void extractTranslationViaElement( daeElement* pTranslateElement, LLMatrix4& transform );
 	void extractTranslationViaSID( daeElement* pElement, LLMatrix4& transform );
@@ -89,10 +101,10 @@ protected:
 	//Verify that a controller matches vertex counts
 	bool verifyController( domController* pController );
 
-	static bool addVolumeFacesFromDomMesh(LLModel* model, domMesh* mesh);
-	static bool createVolumeFacesFromDomMesh(LLModel* model, domMesh *mesh);
+	static bool addVolumeFacesFromDomMesh(LLModel* model, domMesh* mesh, const ImportSettings& settings);
+	static bool createVolumeFacesFromDomMesh(LLModel* model, domMesh *mesh, const ImportSettings& settings);
 
-	static LLModel* loadModelFromDomMesh(domMesh* mesh);
+	static LLModel* loadModelFromDomMesh(domMesh* mesh, const ImportSettings& settings);
 
 	// Loads a mesh breaking it into one or more models as necessary
 	// to get around volume face limitations while retaining >8 materials
@@ -108,6 +120,6 @@ protected:
 private:
 	U32 mGeneratedModelLimit; // Attempt to limit amount of generated submodels
 	bool mPreprocessDAE;
-
+	LLDAELoader::ImportSettings mImportSettings;
 };
 #endif  // LL_LLDAELLOADER_H
