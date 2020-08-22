@@ -19073,7 +19073,7 @@ This should be as low as possible, but too low may break functionality</string>
     <key>DAEExportRiggedMesh</key>
     <map>
       <key>Comment</key>
-      <string>Export skinning information when exporting</string>
+      <string>Include skinning information when exporting</string>
       <key>Persist</key>
       <integer>1</integer>
       <key>Type</key>

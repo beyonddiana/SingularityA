@@ -36,18 +36,31 @@ class DAESaver
 public:
 	struct MaterialInfo
 	{
-		LLUUID textureID;
+		LLUUID colorID;
+		LLUUID normalID;
+		LLUUID specularID;
+
 		LLColor4 color;
 		std::string name;
 
 		bool matches(LLTextureEntry* te) const
 		{
-			return (textureID == te->getID()) && (color == te->getColor());
+			auto mat = te->getMaterialParams();
+			return
+				(colorID == te->getID()) &&
+				(!mat || normalID == mat->getNormalID()) &&
+				(!mat || specularID == mat->getSpecularID()) &&
+				(color == te->getColor());
 		}
 
 		bool operator== (const MaterialInfo& rhs) const
 		{
-			return (textureID == rhs.textureID) && (color == rhs.color) && (name == rhs.name);
+			return
+				(colorID == rhs.colorID) &&
+				(normalID == rhs.normalID) &&
+				(specularID == rhs.specularID) &&
+				(color == rhs.color) &&
+				(name == rhs.name);
 		}
 
 		bool operator!= (const MaterialInfo& rhs) const
@@ -61,14 +74,18 @@ public:
 
 		MaterialInfo(const MaterialInfo& rhs)
 		{
-			textureID = rhs.textureID;
+			colorID = rhs.colorID;
+			normalID = rhs.normalID;
+			specularID = rhs.specularID;
 			color = rhs.color;
 			name = rhs.name;
 		}
 
 		MaterialInfo& operator= (const MaterialInfo& rhs)
 		{
-			textureID = rhs.textureID;
+			colorID = rhs.colorID;
+			normalID = rhs.normalID;
+			specularID = rhs.specularID;
 			color = rhs.color;
 			name = rhs.name;
 			return *this;
@@ -104,7 +121,7 @@ private:
 	void append(daeTArray<domFloat>& arr, const LLMatrix4& matrix);
 	void addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLViewerObject* obj, int_list_t* faces_to_include);
 	void addJointsAndWeights(daeElement* skin, const char* parent_id, LLViewerObject* obj, int_list_t* faces_to_include);
-	void addJointNodes(daeElement* parent, LLJoint* root);
+	void addJointNodes(daeElement* parent, LLJoint* root, LLVector3 parent_scale = LLVector3::all_one);
 	bool skipFace(LLTextureEntry *te);
 	MaterialInfo getMaterial(LLTextureEntry* te);
 	void getMaterials(LLViewerObject* obj, material_list_t* ret);

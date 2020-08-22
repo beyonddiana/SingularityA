@@ -44,6 +44,7 @@
 #include "llviewerinventory.h"
 #include "llviewertexturelist.h"
 #include "llvovolume.h"
+#include "llavatarappearance.h"
 
 // menu includes
 #include "llevent.h"
@@ -176,6 +177,7 @@ private:
 	LLView* mFileName;
 	LLView* mTextureTypeCombo;
 	LLView* mExportRiggedMesh;
+	LLView* mResetBindPose;
 	LLView* mApplyTextureParams;
 	LLView* mConsolidateFaces;
 
@@ -195,8 +197,8 @@ public:
 		mCommitCallbackRegistrar.add("ColladaExport.FilePicker",		boost::bind(&ColladaExportFloater::onClickBrowse, this));
 		mCommitCallbackRegistrar.add("ColladaExport.Export",			boost::bind(&ColladaExportFloater::onClickExport, this));
 		mCommitCallbackRegistrar.add("ColladaExport.TextureTypeCombo",	boost::bind(&ColladaExportFloater::onTextureTypeCombo, this, boost::bind(&LLUICtrl::getControlName, _1), _2));
-		mCommitCallbackRegistrar.add("ColladaExport.TextureExport", boost::bind(&ColladaExportFloater::onTextureExportCheck, this, _2));
-		mCommitCallbackRegistrar.add("ColladaExport.ExportRiggedMesh",		boost::bind(&ColladaExportFloater::HandleExportRiggedMeshCheck, this, _2));
+		mCommitCallbackRegistrar.add("ColladaExport.TextureExport",		boost::bind(&ColladaExportFloater::onTextureExportCheck, this, _2));
+		mCommitCallbackRegistrar.add("ColladaExport.ExportRiggedMesh",	boost::bind(&ColladaExportFloater::HandleExportRiggedMeshCheck, this, _2));
 
 		LLUICtrlFactory::getInstance()->buildFloater(this, "floater_dae_export.xml");
 	}
@@ -214,13 +216,15 @@ public:
 		mFileName				= getChildView("file name editor");
 		mExportBtn				= getChildView("export button");
 		mTextureTypeCombo       = getChildView("texture type combo");
-		mExportRiggedMesh       = getChildView("export rigged mesh");
+		mExportRiggedMesh		= getChildView("export rigged mesh");
+		mResetBindPose          = getChildView("reset bind pose");
 		mApplyTextureParams     = getChildView("texture params check");
 		mConsolidateFaces		= getChildView("consolidate check");
 		mTitleProgress			= getString("texture_progress");
 
 		mTextureTypeCombo->setValue(gSavedSettings.getS32(mTextureTypeCombo->getControlName()));
 		mExportRiggedMesh->setValue(gSavedSettings.getBOOL(mExportRiggedMesh->getControlName()));
+		mResetBindPose->setValue(gSavedSettings.getBOOL(mResetBindPose->getControlName()));
 
 		onTextureExportCheck(getChildView("texture export check")->getValue());
 		HandleExportRiggedMeshCheck(mExportRiggedMesh->getValue());
@@ -262,6 +266,7 @@ public:
 	{
 		//mApplyTextureParams->setEnabled(!value);
 		//mConsolidateFaces->setEnabled(!value);
+		mResetBindPose->setEnabled(value);
 	}
 
 	void onTextureTypeCombo(const std::string& control_name, const LLSD& value)
@@ -314,6 +319,7 @@ public:
 		{
 			mSaver.mRootWorldInvMatrix = LLMatrix4(selection->getFirstRootObject()->getRenderMatrix().getF32ptr());
 			mSaver.mRootWorldInvMatrix.invert();
+
 			mObjectName = selection->getFirstRootNode()->mName;
 			mTotal = 0;
 
@@ -371,6 +377,11 @@ public:
 					++iter)
 				{
 					LLViewerObject* object = iter->first;
+
+					// Completely ignore/skip over HUD attachments
+					if (object->isHUDAttachment())
+						continue;
+
 					mTotal++;
 					try_add_object(object);
 					LLViewerObject::const_child_list_t& children = object->getChildren();
@@ -636,34 +647,65 @@ void DAESaver::updateTextureInfo()
 		for (S32 face_num = 0; face_num < num_faces; ++face_num)
 		{
 			LLTextureEntry* te = obj->getTE(face_num);
-			const LLUUID id = te->getID();
-			if (std::find(mTextures.begin(), mTextures.end(), id) != mTextures.end()) continue;
+			uuid_vec_t candidates;
 
-			mTextures.push_back(id);
-			std::string name;
-			if (id != DAEExportUtil::LL_TEXTURE_BLANK && DAEExportUtil::canExportTexture(id, &name))
+			const LLUUID id_color = te->getID();
+			candidates.push_back(id_color);
+
+			const LLMaterialPtr materials = te->getMaterialParams();
+			if (materials)
 			{
-				std::string safe_name = gDirUtilp->getScrubbedFileName(name);
-				std::replace(safe_name.begin(), safe_name.end(), ' ', '_');
-				mTextureNames.push_back(safe_name);
+				const LLUUID id_normal = materials->getNormalID();
+				const LLUUID id_specular = materials->getSpecularID();
+				candidates.push_back(id_normal);
+				candidates.push_back(id_specular);
 			}
-			else
+
+			for (const LLUUID id : candidates)
 			{
-				mTextureNames.push_back(std::string());
+				if (std::find(mTextures.begin(), mTextures.end(), id) != mTextures.end()) continue;
+
+				mTextures.push_back(id);
+				std::string name;
+				if (id != DAEExportUtil::LL_TEXTURE_BLANK && DAEExportUtil::canExportTexture(id, &name))
+				{
+					std::string safe_name = gDirUtilp->getScrubbedFileName(name);
+					std::replace(safe_name.begin(), safe_name.end(), ' ', '_');
+					mTextureNames.push_back(safe_name);
+				}
+				else
+				{
+					mTextureNames.push_back(std::string());
+				}
 			}
 		}
 	}
 }
 
-class v4adapt
+class v4adaptbase
 {
-private:
+protected:
 	LLStrider<LLVector4a> mV4aStrider;
+	v4adaptbase(LLVector4a* vp) { mV4aStrider = vp; }
+};
+
+class v4adapt3 : v4adaptbase
+{
 public:
-	v4adapt(LLVector4a* vp){ mV4aStrider = vp; }
+	v4adapt3(LLVector4a* vp) : v4adaptbase(vp) { }
 	inline LLVector3 operator[] (const unsigned int i)
 	{
 		return LLVector3((F32*)&mV4aStrider[i]);
+	}
+};
+
+class v4adapt4 : v4adaptbase
+{
+public:
+	v4adapt4(LLVector4a* vp) : v4adaptbase(vp) { }
+	inline LLVector4 operator[] (const unsigned int i)
+	{
+		return LLVector4((F32*)&mV4aStrider[i]);
 	}
 };
 
@@ -894,7 +936,7 @@ void DAESaver::addJointsAndWeights(daeElement* skin, const char* parent_id, LLVi
 	vertex_weights->setCount(vcounts_list.getCount());
 }
 
-void DAESaver::addJointNodes(daeElement* parent, LLJoint* root)
+void DAESaver::addJointNodes(daeElement* parent, LLJoint* root, LLVector3 parent_scale)
 {
 	// Set up joint node
 	domNode* root_node = daeSafeCast<domNode>(parent->add("node"));
@@ -909,17 +951,41 @@ void DAESaver::addJointNodes(daeElement* parent, LLJoint* root)
 	mtx_elem->setSid("transform");
 
 	// Set (local) transform matrix for current joint
-	// Assume identity rotation for joint matrix???
 	LLMatrix4 joint_mtx;
-	joint_mtx.initScale(root->getDefaultScale());
-	joint_mtx.setTranslation(root->getDefaultPosition());
+	LLVector3 local_position, local_scale;
+
+	if (!root->hasAttachmentPosOverride(local_position, LLUUID()))
+	{
+		//position = root->getDefaultPosition();
+		local_position = root->getPosition();
+	}
+
+	if (!root->hasAttachmentScaleOverride(local_scale, LLUUID()))
+	{
+		local_scale = root->getScale();
+	}
+
+	// Calculate "inverse" of parent scale
+	auto parent_inv_scale = LLVector3(1.f / parent_scale[VX], 1.f / parent_scale[VY], 1.f / parent_scale[VZ]);
+
+	// Apply inverse of parent scale to local scale
+	auto scale = local_scale.scaledVec(parent_inv_scale);
+	//auto position = local_position.scaledVec(parent_inv_scale);
+	auto position = local_position;
+
+	// Assume identity rotation for joint matrix?
+	joint_mtx.initAll(scale, LLQuaternion(), position);
 
 	// Write joint matrix into DOM element value
 	append(mtx_elem->getValue(), joint_mtx);
 
 	// Recurse over child joints
 	for (LLJoint::child_list_t::const_iterator iter = root->mChildren.begin(); iter != root->mChildren.end(); ++iter)
-		addJointNodes(root_node, *iter);
+	{
+		// Use local scale for parent scale
+		// To not apply parent inverse scale to this
+		addJointNodes(root_node, *iter, local_scale);
+	}
 }
 
 void DAESaver::transformTexCoord(S32 num_vert, LLVector2* coord, LLVector3* positions, LLVector3* normals, LLTextureEntry* te, LLVector3 scale)
@@ -964,6 +1030,50 @@ void DAESaver::transformTexCoord(S32 num_vert, LLVector2* coord, LLVector3* posi
 		coord[ii].mV[0] = (tX * cosineAngle + tY * sinAngle) * repeatU + offsetU + 0.5f;
 		coord[ii].mV[1] = (-tX * sinAngle + tY * cosineAngle) * repeatV + offsetV + 0.5f;
 	}
+}
+
+LLVector3 getJointPositionForAttachment(LLJoint* joint)
+{
+	LLVector3 ret_position;
+	LLJoint
+		*root = joint->getRoot(),
+		*parent_joint = joint->getParent();
+	for (; joint != NULL && joint != root; joint = parent_joint)
+	{
+		LLVector3 position;
+
+		if (!joint->hasAttachmentPosOverride(position, LLUUID()))
+			position = joint->getPosition();
+
+		parent_joint = joint->getParent();
+
+		if (parent_joint)
+		{
+			LLVector3 parent_scale;
+			if (!parent_joint->hasAttachmentScaleOverride(parent_scale, LLUUID()))
+				parent_scale = parent_joint->getScale();
+			ret_position += position.scaledVec(parent_scale);
+		}
+		else
+		{
+			ret_position += position;
+		}
+	}
+
+	return ret_position;
+}
+
+// Note: does not apply scale transform from parents of xform
+LLMatrix4 getRelativeMatrix(LLXform* root, LLXform* xform)
+{
+	LLMatrix4 ret_mtx;
+	xform->getLocalMat4(ret_mtx);
+	for (xform = xform->getParent(); xform != NULL && xform != root; xform = xform->getParent())
+	{
+		ret_mtx.rotate(xform->getRotation());
+		ret_mtx.translate(xform->getPosition());
+	}
+	return ret_mtx;
 }
 
 bool DAESaver::saveDAE(std::string filename)
@@ -1037,13 +1147,52 @@ bool DAESaver::saveDAE(std::string filename)
 
 	// Whether or not the avatar nodes have been added for an avatar rig
 	bool avatar_node_added = false;
-	// TODO: multiple skeletons? merge identical skeletons???
-	std::string skeleton_source_id; // Singleton skeleton
+	// Singleton skeleton
+	std::string skeleton_source_id;
 
 	// Iterate over objects
 	for (obj_info_t::iterator obj_iter = mObjects.begin(); obj_iter != mObjects.end(); ++obj_iter)
 	{
-		LLViewerObject* obj = obj_iter->first;
+		LLViewerObject* const obj = obj_iter->first;
+		const std::string obj_name = obj_iter->second;
+		const bool obj_is_rigged_mesh = obj->isRiggedMesh();
+		LLMatrix4 bind_shape_mtx, bind_shape_normal_mtx;
+		if (export_rigged_mesh && obj_is_rigged_mesh)
+		{
+			// Cache the object's bind shape matrix to be applied to be applied to vertices later.
+			auto obj_vov = (LLVOVolume*)obj;
+			auto skin_info = obj_vov->getSkinInfo();
+
+			// Bind shape matrix is pretty simple for vertex positions.
+			bind_shape_mtx = skin_info->mBindShapeMatrix;
+
+			// Vertex normals are transformed by an "inverse" scale/rotation matrix.
+			// LLMatrix4::invert does not invert the transformation scale,
+			// so we will need to calculate this separately. -Tarocco
+
+			// There is no trivial way to access the scale vector from the (LLMatrix4) bind shape matrix
+			// so we'll just use the viewer object's scale (LLXform::getScale).
+			auto scale = obj_vov->getScale();
+			// "Un-scale" is the reciprocal of the object's scale
+			auto normal_unscale = LLVector3(1.f / scale[VX], 1.f / scale[VY], 1.f / scale[VZ]);
+
+
+			// HACK: This is portion is purely band-aid code and should be replaced as soon as the correct solution is found
+			// TODO: figure out why vertex normals need some additional rotations.
+			// It seems this is necessary and I have no fucking clue why.
+			// This is a weird hack, and it's probably wrong 99% of the time, but ask me if I care.
+			// -Tarocco
+			auto normals_fix_rot = LLQuaternion(F_PI_BY_TWO, LLVector3(0.f, 0.f, 1.f));
+			auto bind_rot_orientation = LLQuaternion(F_PI_BY_TWO, LLVector3(0.f, 1.f, 0.f));
+			auto root_bind_rot = LLQuaternion(skin_info->mInvBindMatrix[0]);
+			auto root_bind_rot_orient = (~bind_rot_orientation * root_bind_rot) * bind_rot_orientation;
+			normals_fix_rot = normals_fix_rot * root_bind_rot_orient;
+
+
+			// Bind shape normal (TRS) matrix uses object un-scale and object rotation
+			bind_shape_normal_mtx.initAll(normal_unscale, normals_fix_rot, LLVector3::zero);
+		}
+
 		S32 total_num_vertices = 0;
 
 		std::string prim_id = llformat("prim%d", prim_number++);
@@ -1068,10 +1217,9 @@ bool DAESaver::saveDAE(std::string filename)
 			const LLVolumeFace* face = (LLVolumeFace*)&obj->getVolume()->getVolumeFace(face_num);
 			total_num_vertices += face->mNumVertices;
 
-			v4adapt verts(face->mPositions);
-			v4adapt norms(face->mNormals);
-			LLStrider<LLVector4a> skin_weights;
-			skin_weights = face->mWeights;
+			v4adapt3 verts(face->mPositions);
+			v4adapt3 norms(face->mNormals);
+			//v4adapt4 skin_weights(face->mWeights);
 
 			LLVector2* newCoord = NULL;
 
@@ -1091,14 +1239,26 @@ bool DAESaver::saveDAE(std::string filename)
 				delete[] newNormal;
 			}
 
+
 			for (S32 i=0; i < face->mNumVertices; i++)
 			{
-				const LLVector3 v = verts[i];
+				LLVector3 v = verts[i];
+				LLVector3 n = norms[i];
+				//LLVector4 w = skin_weights[i];
+
+				// If the object is rigged mesh, apply bind shape matrices to
+				// vertex positions and normals
+				if (export_rigged_mesh && obj_is_rigged_mesh)
+				{
+					v = v * bind_shape_mtx;
+					n = n * bind_shape_normal_mtx;
+					n.normalize();
+				}
+
 				position_data.push_back(v.mV[VX]);
 				position_data.push_back(v.mV[VY]);
 				position_data.push_back(v.mV[VZ]);
 
-				const LLVector3 n = norms[i];
 				normal_data.push_back(n.mV[VX]);
 				normal_data.push_back(n.mV[VY]);
 				normal_data.push_back(n.mV[VZ]);
@@ -1115,9 +1275,9 @@ bool DAESaver::saveDAE(std::string filename)
 			}
 		}
 
-		addSourceParams(mesh, llformat("%s-%s", prim_id, "positions").c_str(), "XYZ", position_data);
-		addSourceParams(mesh, llformat("%s-%s", prim_id, "normals").c_str(), "XYZ", normal_data);
-		addSourceParams(mesh, llformat("%s-%s", prim_id, "map0").c_str(), "ST", uv_data);
+		addSourceParams(mesh, llformat("%s-%s", geom_id, "positions").c_str(), "XYZ", position_data);
+		addSourceParams(mesh, llformat("%s-%s", geom_id, "normals").c_str(), "XYZ", normal_data);
+		addSourceParams(mesh, llformat("%s-%s", geom_id, "map0").c_str(), "ST", uv_data);
 
 		// Add the <vertices> element
 		{
@@ -1139,7 +1299,7 @@ bool DAESaver::saveDAE(std::string filename)
 			{
 				getFacesWithMaterial(obj, objMaterial, &faces);
 				std::string matName = objMaterial.name;
-				addPolygons(mesh, prim_id.c_str(), (matName + "-material").c_str(), obj, &faces);
+				addPolygons(mesh, geom_id.c_str(), (matName + "-material").c_str(), obj, &faces);
 			}
 		}
 		else
@@ -1165,7 +1325,7 @@ bool DAESaver::saveDAE(std::string filename)
 		domMatrix* matrix_elem = (domMatrix*)node->add("matrix");
 		LLMatrix4 node_xform_mtx;
 
-		if (export_rigged_mesh && obj->isRiggedMesh())
+		if (export_rigged_mesh && obj_is_rigged_mesh)
 		{
 			// Get the skin info
 			LLVOVolume* obj_vov = (LLVOVolume*)obj;
@@ -1175,6 +1335,7 @@ bool DAESaver::saveDAE(std::string filename)
 			{
 				// Try to use the avatar the mesh is rigged to
 				LLVOAvatar* avatar = obj->getAvatarAncestor();
+
 				// If it is not attached to an avatar, use own avatar for reference
 				if (avatar == NULL)
 					avatar = gAgentAvatarp;
@@ -1184,6 +1345,9 @@ bool DAESaver::saveDAE(std::string filename)
 				avatar_node->setName("Avatar");
 				avatar_node->setType(domNodeType::NODETYPE_NODE);
 				LLJoint* root_joint = avatar->mPelvisp; // because yeah
+				// Reference mesh id to use for joint position/scale overrides
+				//LLUUID mesh_id = skin_info->mMeshID;
+				//addJointNodes(avatar_node, root_joint, mesh_id);
 				addJointNodes(avatar_node, root_joint);
 				skeleton_source_id = root_joint->getName();
 				avatar_node_added = true;
@@ -1198,7 +1362,8 @@ bool DAESaver::saveDAE(std::string filename)
 
 			// Set skin bind shape matrix
 			domSkin::domBind_shape_matrix* bind_shape_matrix = daeSafeCast<domSkin::domBind_shape_matrix>(skin->add("bind_shape_matrix"));
-			append(bind_shape_matrix->getValue(), skin_info->mBindShapeMatrix);
+			//append(bind_shape_matrix->getValue(), skin_info->mBindShapeMatrix);
+			append(bind_shape_matrix->getValue(), LLMatrix4());
 
 			// Add joints name source to skin (as Name_array)
 			addSource(skin, llformat("%s-%s", controller_id, "joints").c_str(), "JOINT", skin_info->mJointNames);
@@ -1226,19 +1391,29 @@ bool DAESaver::saveDAE(std::string filename)
 			nodeInstance = node->add("instance_geometry");
 			nodeInstance->setAttribute("url", ("#" + geom_id).c_str());
 
-			// Construct render TRS matrix -including- scale
-			LLXform node_xform;
-			node_xform.setScale(obj->getScale());
-			node_xform.setPosition(obj->getRenderPosition());
-			node_xform.setRotation(obj->getRenderRotation());
+			// When exporting rigged mesh, use avatar-reltative space for attachments
+			if (obj->isAttachment())
+			{
+				auto parent = (LLViewerObject*)obj->getParent();
+				auto avatar = obj->getAvatarAncestor();
+				auto attachment_point = avatar->getTargetAttachmentPoint(obj);
+				auto attachment_joint_position = getJointPositionForAttachment(attachment_point);
 
-			// Write to matrix
-			node_xform.getLocalMat4(node_xform_mtx);
-			// Apply root world inverse matrix to get relative position/rotation
-			node_xform_mtx *= mRootWorldInvMatrix;
+				// Get Xform matrix between avatar root and object
+				node_xform_mtx = getRelativeMatrix(avatar, obj);
+				node_xform_mtx.translate(attachment_joint_position);
+			}
+			else
+			{
+				// Use world space
+				node_xform_mtx.initAll(obj->getScale(), obj->getRenderRotation(), obj->getRenderPosition());
+
+				// Apply root world inverse matrix to get relative position/rotation
+				node_xform_mtx *= mRootWorldInvMatrix;
+			}
 		}
 
-		// Set tranform matrix (node position, rotation and scale)
+		// Append tranform matrix (node position, rotation, and scale)
 		append(matrix_elem->getValue(), node_xform_mtx);
 
 		// Bind materials
@@ -1292,7 +1467,13 @@ DAESaver::MaterialInfo DAESaver::getMaterial(LLTextureEntry* te)
 	}
 
 	MaterialInfo ret;
-	ret.textureID = te->getID();
+	ret.colorID = te->getID();
+	const LLMaterialPtr materials = te->getMaterialParams();
+	if (materials)
+	{
+		ret.normalID = materials->getNormalID();
+		ret.specularID = materials->getSpecularID();
+	}
 	ret.color = te->getColor();
 	ret.name = llformat("Material%d", mAllMaterials.size());
 	mAllMaterials.push_back(ret);
@@ -1331,6 +1512,8 @@ void DAESaver::getFacesWithMaterial(LLViewerObject* obj, const MaterialInfo& mat
 
 void DAESaver::generateEffects(daeElement *effects)
 {
+	// TODO: COLLADA for normal (bump) and specular maps on materials (see FCOLLADA extensions details)
+	// TODO: Diffuse + color tint (see FCOLLADA extensions details)
 	// Effects (face color, alpha)
 	bool export_textures = gSavedSettings.getBOOL("DAEExportTextures");
 
@@ -1348,7 +1531,7 @@ void DAESaver::generateEffects(daeElement *effects)
 			U32 i = 0;
 			for (; i < mTextures.size(); i++)
 			{
-				if (mat.textureID == mTextures[i])
+				if (mat.colorID == mTextures[i])
 				{
 					textID = mTextures[i];
 					break;
