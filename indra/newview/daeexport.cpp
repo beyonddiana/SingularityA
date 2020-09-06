@@ -44,7 +44,6 @@
 #include "llviewerinventory.h"
 #include "llviewertexturelist.h"
 #include "llvovolume.h"
-#include "llavatarappearance.h"
 
 // menu includes
 #include "llevent.h"
@@ -1032,9 +1031,9 @@ void DAESaver::transformTexCoord(S32 num_vert, LLVector2* coord, LLVector3* posi
 	}
 }
 
-LLVector3 getJointPositionForAttachment(LLJoint* joint)
+LLMatrix4 getJointMatrixForAttachment(LLJoint* joint)
 {
-	LLVector3 ret_position;
+	LLMatrix4 ret_mtx;
 	LLJoint
 		*root = joint->getRoot(),
 		*parent_joint = joint->getParent();
@@ -1047,20 +1046,22 @@ LLVector3 getJointPositionForAttachment(LLJoint* joint)
 
 		parent_joint = joint->getParent();
 
+		ret_mtx.rotate(joint->getRotation());
+
 		if (parent_joint)
 		{
 			LLVector3 parent_scale;
 			if (!parent_joint->hasAttachmentScaleOverride(parent_scale, LLUUID()))
 				parent_scale = parent_joint->getScale();
-			ret_position += position.scaledVec(parent_scale);
+			ret_mtx.translate(position.scaledVec(parent_scale));
 		}
 		else
 		{
-			ret_position += position;
+			ret_mtx.translate(position);
 		}
 	}
 
-	return ret_position;
+	return ret_mtx;
 }
 
 // Note: does not apply scale transform from parents of xform
@@ -1397,11 +1398,11 @@ bool DAESaver::saveDAE(std::string filename)
 				auto parent = (LLViewerObject*)obj->getParent();
 				auto avatar = obj->getAvatarAncestor();
 				auto attachment_point = avatar->getTargetAttachmentPoint(obj);
-				auto attachment_joint_position = getJointPositionForAttachment(attachment_point);
+				auto attachment_joint_mtx = getJointMatrixForAttachment(attachment_point);
 
 				// Get Xform matrix between avatar root and object
 				node_xform_mtx = getRelativeMatrix(avatar, obj);
-				node_xform_mtx.translate(attachment_joint_position);
+				node_xform_mtx *= attachment_joint_mtx;
 			}
 			else
 			{
