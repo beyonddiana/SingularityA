@@ -67,30 +67,6 @@ public:
 		{
 			return !(*this == rhs);
 		}
-
-		MaterialInfo()
-		{
-		}
-
-		MaterialInfo(const MaterialInfo& rhs)
-		{
-			colorID = rhs.colorID;
-			normalID = rhs.normalID;
-			specularID = rhs.specularID;
-			color = rhs.color;
-			name = rhs.name;
-		}
-
-		MaterialInfo& operator= (const MaterialInfo& rhs)
-		{
-			colorID = rhs.colorID;
-			normalID = rhs.normalID;
-			specularID = rhs.specularID;
-			color = rhs.color;
-			name = rhs.name;
-			return *this;
-		}
-
 	};
 
 	typedef std::vector<std::pair<LLViewerObject*,std::string>> obj_info_t;
