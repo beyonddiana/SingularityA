@@ -1077,6 +1077,27 @@ LLMatrix4 getRelativeMatrix(LLXform* root, LLXform* xform)
 	return ret_mtx;
 }
 
+void getMatrixRotScale(LLMatrix3 mtx, LLQuaternion& rotation, LLVector3& scale)
+{
+	// Before we orthagonalize the matrix, let's calculate its scale vector
+	scale = LLVector3(
+		mtx.getFwdRow().magVec(),
+		mtx.getLeftRow().magVec(),
+		mtx.getUpRow().magVec());
+	// In order to extract the rotation, we need an orthagonal matrix
+	mtx.orthogonalize();
+	rotation = LLQuaternion(mtx);
+}
+
+// Assumes that all components are nonzero
+LLVector3 getVector3Reciprocal(const LLVector3& vector)
+{
+	return LLVector3(
+		1.f / vector.mV[VX],
+		1.f / vector.mV[VY],
+		1.f / vector.mV[VZ]);
+}
+
 bool DAESaver::saveDAE(std::string filename)
 {
 	// Collada expects file and folder names to be escaped
@@ -1157,7 +1178,8 @@ bool DAESaver::saveDAE(std::string filename)
 		LLViewerObject* const obj = obj_iter->first;
 		const std::string obj_name = obj_iter->second;
 		const bool obj_is_rigged_mesh = obj->isRiggedMesh();
-		LLMatrix4 bind_shape_mtx, bind_shape_normal_mtx;
+		LLMatrix4 bind_shape_mtx;
+		LLMatrix4 bind_shape_normal_mtx;
 		if (export_rigged_mesh && obj_is_rigged_mesh)
 		{
 			// Cache the object's bind shape matrix to be applied to be applied to vertices later.
@@ -1167,31 +1189,15 @@ bool DAESaver::saveDAE(std::string filename)
 			// Bind shape matrix is pretty simple for vertex positions.
 			bind_shape_mtx = skin_info->mBindShapeMatrix;
 
-			// Vertex normals are transformed by an "inverse" scale/rotation matrix.
-			// LLMatrix4::invert does not invert the transformation scale,
-			// so we will need to calculate this separately. -Tarocco
+			// Vertex normals are transformed by an "inverse" scale and (un-inverted) rotation matrix.
+			LLQuaternion bind_shape_rotation;
+			LLVector3 bind_shape_scale;
+			getMatrixRotScale(bind_shape_mtx.getMat3(), bind_shape_rotation, bind_shape_scale);
 
-			// There is no trivial way to access the scale vector from the (LLMatrix4) bind shape matrix
-			// so we'll just use the viewer object's scale (LLXform::getScale).
-			auto scale = obj_vov->getScale();
 			// "Un-scale" is the reciprocal of the object's scale
-			auto normal_unscale = LLVector3(1.f / scale[VX], 1.f / scale[VY], 1.f / scale[VZ]);
+			auto normal_unscale = getVector3Reciprocal(bind_shape_scale);
 
-
-			// HACK: This is portion is purely band-aid code and should be replaced as soon as the correct solution is found
-			// TODO: figure out why vertex normals need some additional rotations.
-			// It seems this is necessary and I have no fucking clue why.
-			// This is a weird hack, and it's probably wrong 99% of the time, but ask me if I care.
-			// -Tarocco
-			auto normals_fix_rot = LLQuaternion(F_PI_BY_TWO, LLVector3(0.f, 0.f, 1.f));
-			auto bind_rot_orientation = LLQuaternion(F_PI_BY_TWO, LLVector3(0.f, 1.f, 0.f));
-			auto root_bind_rot = LLQuaternion(skin_info->mInvBindMatrix[0]);
-			auto root_bind_rot_orient = (~bind_rot_orientation * root_bind_rot) * bind_rot_orientation;
-			normals_fix_rot = normals_fix_rot * root_bind_rot_orient;
-
-
-			// Bind shape normal (TRS) matrix uses object un-scale and object rotation
-			bind_shape_normal_mtx.initAll(normal_unscale, normals_fix_rot, LLVector3::zero);
+			bind_shape_normal_mtx.initAll(normal_unscale, bind_shape_rotation, LLVector3::zero);
 		}
 
 		S32 total_num_vertices = 0;
