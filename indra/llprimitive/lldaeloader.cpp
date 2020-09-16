@@ -147,7 +147,11 @@ bool get_dom_sources(const domInputLocalOffset_Array& inputs, S32& pos_offset, S
 	return true;
 }
 
-LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domTrianglesRef& tri)
+LLModel::EModelStatus load_face_from_dom_triangles(
+	std::vector<LLVolumeFace>& face_list,
+	std::vector<std::string>& materials,
+	domTrianglesRef& tri,
+	const LLMatrix3& axis_transform)
 {
 	LLVolumeFace face;
 	std::vector<LLVolumeFace::VertexData> verts;
@@ -219,9 +223,14 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 				return LLModel::BAD_ELEMENT;
 			}
 
-			cv.setPosition(LLVector4a(v[idx[i+pos_offset]*3+0],
-								v[idx[i+pos_offset]*3+1],
-								v[idx[i+pos_offset]*3+2]));
+			LLVector3 vertex = LLVector3(
+				v[idx[i + pos_offset] * 3 + 0],
+				v[idx[i + pos_offset] * 3 + 1],
+				v[idx[i + pos_offset] * 3 + 2]);
+
+			vertex = vertex * axis_transform;
+
+			cv.setPosition(LLVector4a(vertex.mV[VX], vertex.mV[VY], vertex.mV[VZ]));
 
 			if (!cv.getPosition().isFinite3())
 			{
@@ -263,9 +272,15 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 				return LLModel::BAD_ELEMENT;
 			}
 
-			cv.setNormal(LLVector4a(n[idx[i+norm_offset]*3+0],
-								n[idx[i+norm_offset]*3+1],
-								n[idx[i+norm_offset]*3+2]));
+			LLVector3 normal = LLVector3(
+				n[idx[i + norm_offset] * 3 + 0],
+				n[idx[i + norm_offset] * 3 + 1],
+				n[idx[i + norm_offset] * 3 + 2]
+			);
+
+			normal = normal * axis_transform;
+
+			cv.setNormal(LLVector4a(normal.mV[VX], normal.mV[VY], normal.mV[VZ]));
 
 			if (!cv.getNormal().isFinite3())
 			{
@@ -391,7 +406,11 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 	return LLModel::NO_ERRORS ;
 }
 
-LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domPolylistRef& poly)
+LLModel::EModelStatus load_face_from_dom_polylist(
+	std::vector<LLVolumeFace>& face_list,
+	std::vector<std::string>& materials,
+	domPolylistRef& poly,
+	const LLMatrix3& axis_transform)
 {
 	domPRef p = poly->getP();
 	domListOfUInts& idx = p->getValue();
@@ -476,9 +495,15 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 					return LLModel::BAD_ELEMENT;
 				}
 
-				cv.getPosition().set(v[idx[cur_idx+pos_offset]*3+0],
-									v[idx[cur_idx+pos_offset]*3+1],
-									v[idx[cur_idx+pos_offset]*3+2]);
+				LLVector3 vertex = LLVector3(
+					v[idx[cur_idx + pos_offset] * 3 + 0],
+					v[idx[cur_idx + pos_offset] * 3 + 1],
+					v[idx[cur_idx + pos_offset] * 3 + 2]
+				);
+
+				vertex = vertex * axis_transform;
+
+				cv.getPosition().set(vertex.mV[VX], vertex.mV[VY], vertex.mV[VZ]);
 
 				if (!cv.getPosition().isFinite3())
 				{
@@ -520,9 +545,15 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 					return LLModel::BAD_ELEMENT;
 				}
 
-				cv.getNormal().set(n[idx[cur_idx+norm_offset]*3+0],
-									n[idx[cur_idx+norm_offset]*3+1],
-									n[idx[cur_idx+norm_offset]*3+2]);
+				LLVector3 normal = LLVector3(
+					n[idx[cur_idx + norm_offset] * 3 + 0],
+					n[idx[cur_idx + norm_offset] * 3 + 1],
+					n[idx[cur_idx + norm_offset] * 3 + 2]
+				);
+
+				normal = normal * axis_transform;
+
+				cv.getNormal().set(normal.mV[VX], normal.mV[VY], normal.mV[VZ]);
 
 				if (!cv.getNormal().isFinite3())
 				{
@@ -679,7 +710,11 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 	return LLModel::NO_ERRORS ;
 }
 
-LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& face_list, std::vector<std::string>& materials, domPolygonsRef& poly)
+LLModel::EModelStatus load_face_from_dom_polygons(
+	std::vector<LLVolumeFace>& face_list,
+	std::vector<std::string>& materials,
+	domPolygonsRef& poly,
+	const LLMatrix3& axis_transform)
 {
 	LLVolumeFace face;
 	std::vector<U16> indices;
@@ -784,9 +819,16 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 			{
 				U32 v_idx = idx[j*stride+v_offset]*3;
 				v_idx = llclamp(v_idx, (U32) 0, (U32) v->getCount());
-				vert.getPosition().set(v->get(v_idx),
-								v->get(v_idx+1),
-								v->get(v_idx+2));
+
+				LLVector3 vertex = LLVector3(
+					v->get(v_idx),
+					v->get(v_idx + 1),
+					v->get(v_idx + 2)
+				);
+
+				vertex = vertex * axis_transform;
+
+				vert.getPosition().set(vertex.mV[VX], vertex.mV[VY], vertex.mV[VZ]);
 
 				if (!vert.getPosition().isFinite3())
 				{
@@ -802,9 +844,16 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 			{
 				U32 n_idx = idx[j*stride+n_offset]*3;
 				n_idx = llclamp(n_idx, (U32) 0, (U32) n->getCount());
-				vert.getNormal().set(n->get(n_idx),
-								n->get(n_idx+1),
-								n->get(n_idx+2));
+
+				LLVector3 normal = LLVector3(
+					n->get(n_idx),
+					n->get(n_idx + 1),
+					n->get(n_idx + 2)
+				);
+
+				normal = normal * axis_transform;
+
+				vert.getNormal().set(normal.mV[VX], normal.mV[VY], normal.mV[VZ]);
 
 				if (!vert.getNormal().isFinite3())
 				{
@@ -1076,6 +1125,8 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 
 	rotation *= mTransform;
 	mTransform = rotation;
+	mAxisTransform = rotation.getMat3();
+	mAxisTransform.invert();
 
 	mTransform.condition();	
 	
@@ -1090,7 +1141,7 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 
 			std::vector<LLModel*> models;
 
-			loadModelsFromDomMesh(mesh, models, submodel_limit);
+			loadModelsFromDomMesh(mesh, models, submodel_limit, mAxisTransform);
 
 			std::vector<LLModel*>::iterator i;
 			i = models.begin();
@@ -2456,7 +2507,7 @@ LLColor4 LLDAELoader::getDaeColor(daeElement* element)
 	return value;
 }
 
-bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
+bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh, const LLMatrix3& axis_transform)
 {
 	LLModel::EModelStatus status = LLModel::NO_ERRORS;
 	domTriangles_Array& tris = mesh->getTriangles_array();
@@ -2465,7 +2516,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
 	{
 		domTrianglesRef& tri = tris.get(i);
 
-		status = load_face_from_dom_triangles(pModel->getVolumeFaces(), pModel->getMaterialList(), tri);
+		status = load_face_from_dom_triangles(pModel->getVolumeFaces(), pModel->getMaterialList(), tri, axis_transform);
 		pModel->mStatus = status;
 		if(status != LLModel::NO_ERRORS)
 		{
@@ -2478,7 +2529,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
 	for (U32 i = 0; i < polys.getCount(); ++i)
 	{
 		domPolylistRef& poly = polys.get(i);
-		status = load_face_from_dom_polylist(pModel->getVolumeFaces(), pModel->getMaterialList(), poly);
+		status = load_face_from_dom_polylist(pModel->getVolumeFaces(), pModel->getMaterialList(), poly, axis_transform);
 
 		if(status != LLModel::NO_ERRORS)
 		{
@@ -2492,7 +2543,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel,domMesh* mesh)
 	for (U32 i = 0; i < polygons.getCount(); ++i)
 	{
 		domPolygonsRef& poly = polygons.get(i);
-		status = load_face_from_dom_polygons(pModel->getVolumeFaces(), pModel->getMaterialList(), poly);
+		status = load_face_from_dom_polygons(pModel->getVolumeFaces(), pModel->getMaterialList(), poly, axis_transform);
 
 		if(status != LLModel::NO_ERRORS)
 		{
@@ -2521,7 +2572,11 @@ LLModel* LLDAELoader::loadModelFromDomMesh(domMesh *mesh)
 //static diff version supports creating multiple models when material counts spill
 // over the 8 face server-side limit
 //
-bool LLDAELoader::loadModelsFromDomMesh(domMesh* mesh, std::vector<LLModel*>& models_out, U32 submodel_limit)
+bool LLDAELoader::loadModelsFromDomMesh(
+	domMesh* mesh,
+	std::vector<LLModel*>& models_out,
+	U32 submodel_limit,
+	const LLMatrix3& axis_transform)
 {
 
 	LLVolumeParams volume_params;
@@ -2542,7 +2597,7 @@ bool LLDAELoader::loadModelsFromDomMesh(domMesh* mesh, std::vector<LLModel*>& mo
 
 	// Get the whole set of volume faces
 	//
-	addVolumeFacesFromDomMesh(ret, mesh);
+	addVolumeFacesFromDomMesh(ret, mesh, axis_transform);
 
 	U32 volume_faces = ret->getNumVolumeFaces();
 
@@ -2615,7 +2670,7 @@ bool LLDAELoader::createVolumeFacesFromDomMesh(LLModel* pModel, domMesh* mesh)
 	{
 		pModel->ClearFacesAndMaterials();
 
-		addVolumeFacesFromDomMesh(pModel, mesh);
+		addVolumeFacesFromDomMesh(pModel, mesh, LLMatrix3()); // unused
 
 		if (pModel->getNumVolumeFaces() > 0)
 		{

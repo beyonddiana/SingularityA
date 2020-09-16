@@ -99,6 +99,7 @@ public:
 	
 	S32 mLod;
 	
+	LLMatrix3 mAxisTransform;
 	LLMatrix4 mTransform;
 	BOOL mFirstTransform;
 	LLVector3 mExtents[2];

@@ -89,7 +89,7 @@ protected:
 	//Verify that a controller matches vertex counts
 	bool verifyController( domController* pController );
 
-	static bool addVolumeFacesFromDomMesh(LLModel* model, domMesh* mesh);
+	static bool addVolumeFacesFromDomMesh(LLModel* model, domMesh* mesh, const LLMatrix3& axis_transform);
 	static bool createVolumeFacesFromDomMesh(LLModel* model, domMesh *mesh);
 
 	static LLModel* loadModelFromDomMesh(domMesh* mesh);
@@ -97,7 +97,7 @@ protected:
 	// Loads a mesh breaking it into one or more models as necessary
 	// to get around volume face limitations while retaining >8 materials
 	//
-	bool loadModelsFromDomMesh(domMesh* mesh, std::vector<LLModel*>& models_out, U32 submodel_limit);
+	bool loadModelsFromDomMesh(domMesh* mesh, std::vector<LLModel*>& models_out, U32 submodel_limit, const LLMatrix3& axis_transform);
 
 	static std::string getElementLabel(daeElement *element);
 	static size_t getSuffixPosition(std::string label);
