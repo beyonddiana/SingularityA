@@ -1074,6 +1074,8 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 		rotation.initRotation(90.0f * DEG_TO_RAD, 0.0f, 0.0f);
 	}
 
+	mAxisTransform = rotation;
+
 	rotation *= mTransform;
 	mTransform = rotation;
 
@@ -1923,7 +1925,7 @@ void LLDAELoader::extractTranslationViaSID( daeElement* pElement, LLMatrix4& tra
 //-----------------------------------------------------------------------------
 // processJointNode()
 //-----------------------------------------------------------------------------
-void LLDAELoader::processJointNode( domNode* pNode, JointTransformMap& jointTransforms )
+void LLDAELoader::processJointNode( domNode* pNode, JointTransformMap& jointTransforms, const LLMatrix4& parentTransform)
 {
 	if (pNode->getName() == NULL)
 	{
@@ -1985,8 +1987,16 @@ void LLDAELoader::processJointNode( domNode* pNode, JointTransformMap& jointTran
 		}
 	}
 
+	// Apply world-space axis transform to this joint
+	LLMatrix4 correctedTransform = workingTransform;
+	LLMatrix4 inverseParentTransform = parentTransform;
+	inverseParentTransform.invert();
+	correctedTransform *= parentTransform;
+	correctedTransform *= mAxisTransform;
+	correctedTransform *= inverseParentTransform;
+
 	//Store the working transform relative to the nodes name.
-	jointTransforms[ pNode->getName() ] = workingTransform;
+	jointTransforms[ pNode->getName() ] = correctedTransform;
 
 	//2. handle the nodes children
 
@@ -1999,7 +2009,8 @@ void LLDAELoader::processJointNode( domNode* pNode, JointTransformMap& jointTran
 		domNode* pChildNode = daeSafeCast<domNode>(childOfChild[i]);
 		if (pChildNode)
 		{
-			processJointNode(pChildNode, jointTransforms);
+			// Pass the working transform as the child joint's parent transform
+			processJointNode(pChildNode, jointTransforms, workingTransform);
 		}
 	}
 }
