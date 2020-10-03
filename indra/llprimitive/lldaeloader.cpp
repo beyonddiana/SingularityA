@@ -87,8 +87,7 @@ bool get_dom_sources(const domInputLocalOffset_Array& inputs, U32& pos_offset, U
 	domSource*& pos_source, domSource*& tc_source, domSource*& norm_source)
 {
 	idx_stride = 0;
-	const auto inputs_count = (U32)inputs.getCount();
-	for (auto j = 0U; j < inputs_count; ++j)
+	for (size_t j = 0; j < inputs.getCount(); ++j)
 	{
 		const auto& input = inputs[j];
 		const auto input_semantic = input->getSemantic();
@@ -106,8 +105,7 @@ bool get_dom_sources(const domInputLocalOffset_Array& inputs, U32& pos_offset, U
 			}
 
 			const auto& v_inp = vertices->getInput_array();
-			const auto v_inp_count = (U32)v_inp.getCount();
-			for (auto k = 0U; k < v_inp_count; ++k)
+			for (size_t k = 0; k < v_inp.getCount(); ++k)
 			{
 				const auto& v_inp_k = v_inp[k];
 				const auto v_inp_semantic = v_inp_k->getSemantic();
@@ -184,10 +182,10 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 	const auto& tc = tc_source ? tc_source->getFloat_array()->getValue() : dummy;
 	const auto& n = norm_source ? norm_source->getFloat_array()->getValue() : dummy;
 
-	const auto index_count = (U32)idx.getCount();
-	const auto vertex_count = pos_source ? (U32)v.getCount() : 0U;
-	const auto tc_count = tc_source ? (U32)tc.getCount() : 0U;
-	const auto norm_count = norm_source ? (U32)n.getCount() : 0U;
+	const auto index_count = idx.getCount();
+	const auto vertex_count = pos_source ? v.getCount() : 0;
+	const auto tc_count = tc_source ? tc.getCount() : 0;
+	const auto norm_count = norm_source ? n.getCount() : 0;
 
 	if (pos_source)
 	{
@@ -203,16 +201,16 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 
 	LLVolumeFace::VertexMapData::PointMap point_map;
 
-	for (auto i = 0UL; i < index_count; i += idx_stride)
+	for (size_t i = 0; i < index_count; i += idx_stride)
 	{
 		LLVolumeFace::VertexData cv;
 		if (pos_source)
 		{
 			// guard against model data specifiying out of range indices or verts
 			//
-			const auto p_pos_index = (U32)idx[i + pos_offset] * 3U;
+			const auto p_pos_index = idx[i + pos_offset] * 3;
 			if (((i + pos_offset) > index_count)
-				|| ((p_pos_index + 2U) > vertex_count))
+				|| ((p_pos_index + 2) > vertex_count))
 			{
 				LL_WARNS() << "Out of range index data; invalid model." << LL_ENDL;
 				return LLModel::BAD_ELEMENT;
@@ -220,8 +218,8 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 
 			const auto cv_position = LLVector4a(
 				v[p_pos_index],
-				v[p_pos_index + 1U],
-				v[p_pos_index + 2U]);
+				v[p_pos_index + 1],
+				v[p_pos_index + 2]);
 			cv.setPosition(cv_position);
 
 			if (!cv_position.isFinite3())
@@ -235,9 +233,9 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 		{
 			// guard against model data specifiying out of range indices or tcs
 			//
-			const auto p_tc_index = (U32)idx[i + tc_offset] * 2U;
+			const auto p_tc_index = idx[i + tc_offset] * 2;
 			if (((i + tc_offset) > index_count)
-				|| ((p_tc_index + 1U) > tc_count))
+				|| ((p_tc_index + 1) > tc_count))
 			{
 				LL_WARNS() << "Out of range TC indices." << LL_ENDL;
 				return LLModel::BAD_ELEMENT;
@@ -245,7 +243,7 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 
 			cv.mTexCoord = LLVector2(
 				tc[p_tc_index],
-				tc[p_tc_index + 1U]);
+				tc[p_tc_index + 1]);
 
 			if (!cv.mTexCoord.isFinite())
 			{
@@ -258,9 +256,9 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 		{
 			// guard against model data specifiying out of range indices or norms
 			//
-			const auto p_norm_index = (U32)idx[i + norm_offset] * 3U;
+			const auto p_norm_index = idx[i + norm_offset] * 3;
 			if (((i + norm_offset) > index_count)
-				|| ((p_norm_index + 2U) > norm_count))
+				|| ((p_norm_index + 2) > norm_count))
 			{
 				LL_WARNS() << "Found out of range norm indices, invalid model." << LL_ENDL;
 				return LLModel::BAD_ELEMENT;
@@ -268,8 +266,8 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 
 			const auto cv_normal = LLVector4a(
 				n[p_norm_index],
-				n[p_norm_index + 1U],
-				n[p_norm_index + 2U]);
+				n[p_norm_index + 1],
+				n[p_norm_index + 2]);
 			cv.setNormal(cv_normal);
 
 			if (!cv_normal.isFinite3())
@@ -286,22 +284,21 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 
 		if (point_iter != point_map.end())
 		{
-			const auto& map_data = point_iter->second;
-			const auto map_data_size = (U32)map_data.size();
-			for (auto j = 0U; j < map_data_size; ++j)
+			const auto& vm_data = point_iter->second;
+			for(const auto& vm : vm_data)
 			{
 				// We have a matching loc
 				//
-				if (map_data[j] == cv)
+				if (vm == cv)
 				{
-					auto shared_index = map_data[j].mIndex;
+					auto shared_index = vm.mIndex;
 
 					// Don't share verts within the same tri, degenerate
 					//
-					const auto index_size = (U32)indices.size();
-					const auto verts_new_tri = index_size % 3U;
-					if ((verts_new_tri < 1U || indices[index_size - 1U] != shared_index)
-						&& (verts_new_tri < 2U || indices[index_size - 2U] != shared_index))
+					const auto index_size = indices.size();
+					const auto verts_new_tri = index_size % 3;
+					if ((verts_new_tri < 1 || indices[index_size - 1] != shared_index)
+						&& (verts_new_tri < 2 || indices[index_size - 2] != shared_index))
 					{
 						found = true;
 						indices.push_back(shared_index);
@@ -315,13 +312,12 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 		{
 			update_min_max(face.mExtents[0], face.mExtents[1], cv.getPosition());
 			verts.push_back(cv);
-			const auto verts_size = verts.size();
-			if (verts_size >= 0xFFFFU)
+			if (verts.size() >= 0xFFFFU)
 			{
 				//LL_ERRS() << "Attempted to write model exceeding 16-bit index buffer limitation." << LL_ENDL;
 				return LLModel::VERTEX_NUMBER_OVERFLOW;
 			}
-			const auto index = (U16)(verts_size - 1);
+			const auto index = (U16)(verts.size() - 1);
 			indices.push_back(index);
 
 			LLVolumeFace::VertexMapData d;
@@ -406,7 +402,7 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 	const auto p = poly->getP();
 	const auto& idx = p->getValue();
 
-	const auto index_count = (U32)idx.getCount();
+	const auto index_count = idx.getCount();
 	if (index_count == 0)
 	{
 		return LLModel::NO_ERRORS;
@@ -450,18 +446,17 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 
 	LLVolumeFace::VertexMapData::PointMap point_map;
 
-	const auto vertex_count = pos_source ? (U32)v.getCount() : 0U;
-	const auto tc_count = tc_source ? (U32)tc.getCount() : 0U;
-	const auto norm_count = norm_source ? (U32)n.getCount() : 0U;
+	const auto vertex_count = pos_source ? v.getCount() : 0;
+	const auto tc_count = tc_source ? tc.getCount() : 0;
+	const auto norm_count = norm_source ? n.getCount() : 0;
 
-	auto cur_idx = 0U;
-	const auto vcount_count = (U32)vcount.getCount();
-	for (auto i = 0U; i < vcount_count; ++i)
+	size_t cur_idx = 0;
+	for (size_t i = 0; i < vcount.getCount(); ++i)
 	{
 		//for each polygon
-		auto first_index = 0U;
-		auto last_index = 0U;
-		for (auto j = 0U; j < vcount[i]; ++j)
+		auto first_index = (U16)0;
+		auto last_index = (U16)0;
+		for (size_t j = 0; j < vcount[i]; ++j)
 		{
 			//for each vertex
 			LLVolumeFace::VertexData cv;
@@ -470,9 +465,9 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 			{
 				// guard against model data specifiying out of range indices or verts
 				//
-				const auto p_pos_index = (U32)idx[cur_idx + pos_offset] * 3U;
-				if (((cur_idx + pos_offset) > index_count)
-					|| ((p_pos_index + 2U) > vertex_count))
+				const auto cur_idx_offset = cur_idx + pos_offset;
+				const auto p_pos_index = (size_t)idx[cur_idx_offset] * 3;
+				if ((cur_idx_offset > index_count) || ((p_pos_index + 2) > vertex_count))
 				{
 					LL_WARNS() << "Out of range position indices, invalid model." << LL_ENDL;
 					return LLModel::BAD_ELEMENT;
@@ -480,8 +475,8 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 
 				const auto cv_position = LLVector4a(
 					v[p_pos_index],
-					v[p_pos_index + 1U],
-					v[p_pos_index + 2U]);
+					v[p_pos_index + 1],
+					v[p_pos_index + 2]);
 				cv.setPosition(cv_position);
 
 				if (!cv_position.isFinite3())
@@ -496,9 +491,9 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 			{
 				// guard against model data specifiying out of range indices or tcs
 				//
-				const auto p_tc_index = (U32)idx[cur_idx + tc_offset] * 2U;
-				if (((cur_idx + tc_offset) > index_count)
-					|| ((p_tc_index + 1U) > tc_count))
+				const auto cur_idx_offset = cur_idx + tc_offset;
+				const auto p_tc_index = (size_t)idx[cur_idx_offset] * 2;
+				if ((cur_idx_offset > index_count) || ((p_tc_index + 1) > tc_count))
 				{
 					LL_WARNS() << "Out of range TC indices, invalid model." << LL_ENDL;
 					return LLModel::BAD_ELEMENT;
@@ -506,7 +501,7 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 
 				cv.mTexCoord = LLVector2(
 					tc[p_tc_index],
-					tc[p_tc_index + 1U]);
+					tc[p_tc_index + 1]);
 
 				if (!cv.mTexCoord.isFinite())
 				{
@@ -519,9 +514,9 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 			{
 				// guard against model data specifiying out of range indices or norms
 				//
-				const auto p_norm_index = (U32)idx[cur_idx + norm_offset] * 3U;
-				if (((cur_idx + norm_offset) > index_count)
-					|| ((p_norm_index + 2U) > norm_count))
+				const auto cur_idx_offset = cur_idx + norm_offset;
+				const auto p_norm_index = (size_t)idx[cur_idx_offset] * 3;
+				if ((cur_idx_offset > index_count) || ((p_norm_index + 2) > norm_count))
 				{
 					LL_WARNS() << "Out of range norm indices, invalid model." << LL_ENDL;
 					return LLModel::BAD_ELEMENT;
@@ -529,8 +524,8 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 
 				const auto cv_normal = LLVector4a(
 					n[p_norm_index],
-					n[p_norm_index + 1U],
-					n[p_norm_index + 2U]);
+					n[p_norm_index + 1],
+					n[p_norm_index + 2]);
 				cv.setNormal(cv_normal);
 
 				if (!cv_normal.isFinite3())
@@ -549,21 +544,18 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 			if (point_iter != point_map.end())
 			{
 				const auto& vm_data = point_iter->second;
-				const auto vm_data_size = (U32)vm_data.size();
-				for (auto k = 0U; k < vm_data_size; ++k)
+				for (const auto& vm : vm_data)
 				{
-					const auto& vm = vm_data[k];
-
 					// If vertex data matches current vertex
 					if (vm == cv)
 					{
 						found = TRUE;
-						const auto index = (U32)vm.mIndex;
-						if (j == 0U)
+						const auto index = vm.mIndex;
+						if (j == 0)
 						{
 							first_index = index;
 						}
-						else if (j == 1U)
+						else if (j == 1)
 						{
 							last_index = index;
 						}
@@ -587,19 +579,18 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 			{
 				update_min_max(face.mExtents[0], face.mExtents[1], cv.getPosition());
 				verts.push_back(cv);
-				const auto verts_size = verts.size();
-				if (verts_size >= 0xFFFFU)
+				if (verts.size() >= 0xFFFFU)
 				{
 					//LL_ERRS() << "Attempted to write model exceeding 16-bit index buffer limitation." << LL_ENDL;
 					return LLModel::VERTEX_NUMBER_OVERFLOW;
 				}
-				const auto index = (U16)(verts_size - 1);
+				const auto index = (U16)(verts.size() - 1);
 
-				if (j == 0U)
+				if (j == 0)
 				{
 					first_index = index;
 				}
-				else if (j == 1U)
+				else if (j == 1)
 				{
 					last_index = index;
 				}
@@ -630,8 +621,7 @@ LLModel::EModelStatus load_face_from_dom_polylist(std::vector<LLVolumeFace>& fac
 				}
 			}
 
-			const auto indices_size = indices.size();
-			if (indices_size % 3 == 0 && indices_size >= 0xFFFCU)
+			if (indices.size() % 3 == 0 && indices.size() >= 0xFFFCU)
 			{
 				std::string material;
 
@@ -706,8 +696,7 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 	auto v_offset = 0U, n_offset = 0U, t_offset = 0U, stride = 0U;
 	domListOfFloats* v = NULL, * n = NULL, * t = NULL;
 
-	auto inputs_count = (U32)inputs.getCount();
-	for (auto i = 0U; i < inputs_count; ++i)
+	for (size_t i = 0; i < inputs.getCount(); ++i)
 	{
 		const auto& input = inputs[i];
 		const auto input_semantic = input->getSemantic();
@@ -726,9 +715,8 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 				LL_WARNS() << "Could not find vertex source, invalid model." << LL_ENDL;
 				return LLModel::BAD_ELEMENT;
 			}
-			const auto& v_inp = vertices->getInput_array();
-			const auto v_inp_count = (U32)v_inp.getCount();
-			for (auto k = 0U; k < v_inp_count; ++k)
+			const auto& v_inp = vertices->getInput_array(); 
+			for (size_t k = 0; k < v_inp.getCount(); ++k)
 			{
 				auto& v_inp_k = v_inp[k];
 				if (strcmp(COMMON_PROFILE_INPUT_POSITION, v_inp_k->getSemantic()) == 0)
@@ -776,22 +764,20 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 	}
 
 	const auto& ps = poly->getP_array();
-	const auto ps_count = (U32)ps.getCount();
 
 	//make a triangle list in <verts>
-	for (auto i = 0U; i < ps_count; ++i)
+	for (size_t i = 0; i < ps.getCount(); ++i)
 	{
 		//for each polygon
 		const auto& idx = ps[i]->getValue();
 		const auto idx_count_by_stride = idx.getCount() / stride;
-		for (auto j = 0U; j < idx_count_by_stride; ++j)
+		for (size_t j = 0; j < idx_count_by_stride; ++j)
 		{
 			//for each vertex
 			if (j > 2)
 			{
-				const auto verts_size = (U32)verts.size();
-				const auto& v0 = verts[verts_size - 3];
-				const auto& v1 = verts[verts_size - 1];
+				const auto& v0 = verts[(U32)verts.size() - 3];
+				const auto& v1 = verts[(U32)verts.size() - 1];
 
 				verts.push_back(v0);
 				verts.push_back(v1);
@@ -801,12 +787,12 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 
 			if (v)
 			{
-				auto v_idx = (U32)idx[j * stride + v_offset] * 3U;
-				v_idx = llclamp(v_idx, 0U, (U32)v->getCount());
+				auto v_idx = (size_t)idx[j * stride + v_offset] * 3;
+				v_idx = llclamp(v_idx, size_t(0), v->getCount());
 				const auto v_pos = LLVector4a(
 					v->get(v_idx),
-					v->get(v_idx + 1U),
-					v->get(v_idx + 2U));
+					v->get(v_idx + 1),
+					v->get(v_idx + 2));
 				vert.setPosition(v_pos);
 				if (!v_pos.isFinite3())
 				{
@@ -820,9 +806,8 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 			//for a particular channel
 			if (n && n->getCount() > 0)
 			{
-				const auto n_count = (U32)n->getCount();
-				auto n_idx = (U32)idx[j * stride + n_offset] * 3;
-				n_idx = llclamp(n_idx, 0U, n_count);
+				auto n_idx = (size_t)idx[j * stride + n_offset] * 3;
+				n_idx = llclamp(n_idx, size_t(0), n->getCount());
 				const auto v_norm = LLVector4a(
 					n->get(n_idx),
 					n->get(n_idx + 1),
@@ -841,12 +826,11 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 
 			if (t && t->getCount() > 0)
 			{
-				const auto t_count = (U32)t->getCount();
-				auto t_idx = (U32)idx[j * stride + t_offset] * 2;
-				t_idx = llclamp(t_idx, 0U, t_count);
+				auto t_idx = (size_t)idx[j * stride + t_offset] * 2;
+				t_idx = llclamp(t_idx, size_t(0), t->getCount());
 				vert.mTexCoord = LLVector2(
 					t->get(t_idx),
-					t->get(t_idx + 1U));
+					t->get(t_idx + 1));
 				if (!vert.mTexCoord.isFinite())
 				{
 					LL_WARNS() << "Found NaN while loading tex coords from DAE-Model, invalid model." << LL_ENDL;
@@ -874,8 +858,7 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 	std::map<LLVolumeFace::VertexData, U32> vert_idx;
 
 	auto cur_idx = 0U;
-	const auto verts_size = (U32)verts.size();
-	for (auto i = 0U; i < verts_size; ++i)
+	for (size_t i = 0; i < verts.size(); ++i)
 	{
 		auto iter = vert_idx.find(verts[i]);
 		if (iter == vert_idx.end())
@@ -897,7 +880,7 @@ LLModel::EModelStatus load_face_from_dom_polygons(std::vector<LLVolumeFace>& fac
 	//build index array from map
 	indices.resize(verts.size());
 
-	for (auto i = 0U; i < verts_size; ++i)
+	for (size_t i = 0; i < verts.size(); ++i)
 	{
 		indices[i] = vert_idx[verts[i]];
 		llassert(!i || (indices[i - 1] != indices[i]));
@@ -1046,9 +1029,9 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 
 	//Verify some basic properties of the dae
 	//1. Basic validity check on controller 
-	const auto controllerCount = (U32)db->getElementCount(NULL, "controller");
+	const auto controllerCount = db->getElementCount(NULL, "controller");
 	bool result = false;
-	for (auto i = 0U; i < controllerCount; ++i)
+	for (size_t i = 0; i < controllerCount; ++i)
 	{
 		domController* pController = NULL;
 		db->getElement((daeElement**)&pController, i, NULL, "controller");
@@ -1099,9 +1082,9 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 
 	mTransform.condition();
 
-	const auto mesh_count = (U32)db->getElementCount(NULL, COLLADA_TYPE_MESH);
+	const auto mesh_count = db->getElementCount(NULL, COLLADA_TYPE_MESH);
 	const auto submodel_limit = mesh_count > 0 ? mGeneratedModelLimit / mesh_count : 0;
-	for (auto idx = 0U; idx < mesh_count; ++idx)
+	for (size_t idx = 0; idx < mesh_count; ++idx)
 	{
 		//build map of domEntities to LLModel
 		domMesh* mesh = NULL;
@@ -1132,7 +1115,7 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 
 	for (const LLModel* mdl : mModelList)
 	{
-		const auto material_count = (U32)mdl->mMaterialList.size();
+		const auto material_count = mdl->mMaterialList.size();
 		LL_INFOS() << "Importing " << mdl->mLabel << " model with " << material_count << " material references" << LL_ENDL;
 
 		auto mat_iter = mdl->mMaterialList.begin();
@@ -1145,8 +1128,8 @@ bool LLDAELoader::OpenFile(const std::string& filename)
 		}
 	}
 
-	const auto skin_count = (U32)db->getElementCount(NULL, COLLADA_TYPE_SKIN);
-	for (auto idx = 0U; idx < skin_count; ++idx)
+	const auto skin_count = db->getElementCount(NULL, COLLADA_TYPE_SKIN);
+	for (size_t idx = 0; idx < skin_count; ++idx)
 	{
 		//add skinned meshes as instances
 		domSkin* skin = NULL;
@@ -1260,11 +1243,11 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 
 			auto& skin_info = model->mSkinInfo;
 
-			for (auto i = 0U; i < 4U; ++i)
+			for (size_t i = 0; i < 4; ++i)
 			{
-				for (auto j = 0U; j < 4U; ++j)
+				for (size_t j = 0; j < 4; ++j)
 				{
-					skin_info.mBindShapeMatrix.mMatrix[i][j] = dom_value[i + j * 4U];
+					skin_info.mBindShapeMatrix.mMatrix[i][j] = dom_value[i + j * 4];
 				}
 			}
 
@@ -1277,9 +1260,9 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 		buildJointToNodeMappingFromScene(root);
 
 		//Some collada setup for accessing the skeleton
-		const auto skeleton_count = (U32)dae->getDatabase()->getElementCount(NULL, "skeleton");
+		const auto skeleton_count = dae->getDatabase()->getElementCount(NULL, "skeleton");
 		std::vector<domInstance_controller::domSkeleton*> skeletons;
-		for (auto i = 0U; i < skeleton_count; ++i)
+		for (size_t i = 0; i < skeleton_count; ++i)
 		{
 			daeElement* pElement = NULL;
 			dae->getDatabase()->getElement(&pElement, i, 0, "skeleton");
@@ -1311,11 +1294,11 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 			{
 				//Get the children at this level
 				const auto children = pScene->getChildren();
-				const auto childCount = (U32)children.getCount();
+				const auto childCount = children.getCount();
 
 				//Process any children that are joints
 				//Not all children are joints, some code be ambient lights, cameras, geometry etc..
-				for (auto i = 0U; i < childCount; ++i)
+				for (size_t i = 0; i < childCount; ++i)
 				{
 					const auto pNode = daeSafeCast<domNode>(children[i]);
 					if (isNodeAJoint(pNode))
@@ -1398,8 +1381,7 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 		const auto joints = skin->getJoints();
 
 		const auto& joint_input = joints->getInput_array();
-		const auto joint_input_count = (U32)joint_input.getCount();
-		for (auto i = 0U; i < joint_input_count; ++i)
+		for (size_t i = 0; i < joint_input.getCount(); ++i)
 		{
 			const auto input = joint_input.get(i);
 			const auto semantic = input->getSemantic();
@@ -1413,13 +1395,13 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 					if (auto names_source = source->getName_array())
 					{
 						const auto& names = names_source->getValue();
-						const auto names_count = names.getCount();
-						for (auto j = 0U; j < names_count; ++j)
+						for (size_t j = 0; j < names.getCount(); ++j)
 						{
 							std::string name(names.get(j));
-							if (mJointMap.find(name) != mJointMap.end())
+							const auto& joint_found = mJointMap.find(name);
+							if (joint_found != mJointMap.end())
 							{
-								name = mJointMap[name];
+								name = joint_found->second;
 							}
 							model->mSkinInfo.mJointNames.push_back(name);
 							model->mSkinInfo.mJointNums.push_back(-1);
@@ -1428,13 +1410,13 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 					else if (auto names_source = source->getIDREF_array())
 					{
 						const auto& names = names_source->getValue();
-						const auto names_count = names.getCount();
-						for (auto j = 0U; j < names_count; ++j)
+						for (size_t j = 0; j < names.getCount(); ++j)
 						{
 							std::string name(names.get(j).getID());
-							if (mJointMap.find(name) != mJointMap.end())
+							const auto& joint_found = mJointMap.find(name);
+							if (joint_found != mJointMap.end())
 							{
-								name = mJointMap[name];
+								name = joint_found->second;
 							}
 							model->mSkinInfo.mJointNames.push_back(name);
 							model->mSkinInfo.mJointNums.push_back(-1);
@@ -1450,16 +1432,16 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 					if (const auto t = source->getFloat_array())
 					{
 						const auto& transform = t->getValue();
-						const auto count = (U32)transform.getCount() / 16U;
+						const auto n_transforms = transform.getCount() / 16;
 
-						for (auto k = 0U; k < count; ++k)
+						for (size_t k = 0; k < n_transforms; ++k)
 						{
 							LLMatrix4 mat;
-							for (auto i = 0U; i < 4U; ++i)
+							for (size_t i = 0; i < 4; ++i)
 							{
-								for (auto j = 0U; j < 4U; ++j)
+								for (size_t j = 0; j < 4; ++j)
 								{
-									mat.mMatrix[i][j] = transform[k * 16U + i + j * 4U];
+									mat.mMatrix[i][j] = transform[k * 16 + i + j * 4];
 								}
 							}
 							model->mSkinInfo.mInvBindMatrix.push_back(mat);
@@ -1493,12 +1475,13 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 				for (const auto& masterJointPair : mJointMap)
 				{
 					const auto lookingForJoint = masterJointPair.first;
-					if (mJointList.find(lookingForJoint) != mJointList.end())
+					const auto& joint_found = mJointList.find(lookingForJoint);
+					if (joint_found != mJointList.end())
 					{
 						//LL_INFOS()<<"joint "<<lookingForJoint.c_str()<<LL_ENDL;
 						if (const auto pJoint = mJointLookupFunc(lookingForJoint, mOpaqueData))
 						{
-							const auto jointTransform = mJointList[lookingForJoint];
+							const auto jointTransform = joint_found->second;
 							const auto& joint_pos = jointTransform.getTranslation();
 							if (pJoint->aboveJointPosThreshold(joint_pos))
 							{
@@ -1546,8 +1529,8 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 		if (auto verts = mesh->getVertices())
 		{
 			const auto& inputs = verts->getInput_array();
-			const auto inputs_count = (U32)inputs.getCount();
-			for (auto i = 0U; i < inputs_count && model->mPosition.empty(); ++i)
+			const auto inputs_count = inputs.getCount();
+			for (size_t i = 0; i < inputs_count && model->mPosition.empty(); ++i)
 			{
 				if (strcmp(inputs[i]->getSemantic(), COMMON_PROFILE_INPUT_POSITION) == 0)
 				{
@@ -1556,15 +1539,15 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 						if (const auto pos_array = pos_source->getFloat_array())
 						{
 							const auto& pos = pos_array->getValue();
-							const auto pos_count = (U32)pos.getCount();
-							for (auto j = 0U; j < pos_count; j += 3)
+							const auto pos_count = pos.getCount();
+							for (size_t j = 0; j < pos_count; j += 3)
 							{
 								if (pos_count <= j + 2)
 								{
 									LL_ERRS() << "Invalid position array size." << LL_ENDL;
 								}
 
-								LLVector3 v(pos[j], pos[j + 1U], pos[j + 2U]);
+								LLVector3 v(pos[j], pos[j + 1], pos[j + 2]);
 
 								//transform from COLLADA space to volume space
 								v = v * inverse_normalized_transformation;
@@ -1581,9 +1564,8 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 		if (auto weights = skin->getVertex_weights())
 		{
 			const auto& inputs = weights->getInput_array();
-			const auto inputs_count = (U32)inputs.getCount();
 			domFloat_array* vertex_weights = NULL;
-			for (auto i = 0U; i < inputs_count; ++i)
+			for (size_t i = 0; i < inputs.getCount(); ++i)
 			{
 				if (strcmp(inputs[i]->getSemantic(), COMMON_PROFILE_INPUT_WEIGHT) == 0)
 				{
@@ -1600,16 +1582,14 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 				const auto& vcount = weights->getVcount()->getValue();
 				const auto vcount_count = vcount.getCount(); // sure ok
 				const auto& v = weights->getV()->getValue();
-				auto c_idx = 0U;
-				for (auto vc_idx = 0U; vc_idx < vcount_count; ++vc_idx)
+				auto c_idx = 0;
+				for (auto vc_idx = 0; vc_idx < vcount_count; ++vc_idx)
 				{
 					//for each vertex
-					const auto count = vcount[vc_idx];
-
 					//create list of weights that influence this vertex
 					LLModel::weight_list weight_list;
 
-					for (daeUInt i = 0; i < count; ++i)
+					for (daeUInt i = 0; i < vcount[vc_idx]; ++i)
 					{
 						//for each weight
 						const auto joint_idx = v[c_idx++];
@@ -1632,9 +1612,8 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 					std::vector<LLModel::JointWeight> wght;
 
 					auto total = 0.f;
-					const auto weight_list_size = (U32)weight_list.size();
-					const auto n_weights = llmin(4U, weight_list_size);
-					for (auto i = 0U; i < n_weights; ++i)
+					const auto n_weights = llmin(size_t(4), weight_list.size());
+					for (size_t i = 0; i < n_weights; ++i)
 					{
 						//take up to 4 most significant weights
 						const auto weight = weight_list[i];
@@ -1650,8 +1629,7 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 					{
 						//normalize weights
 						const auto scale = 1.f / total;
-						const auto wght_size = (U32)wght.size();
-						for (auto i = 0U; i < wght_size; ++i)
+						for (size_t i = 0; i < wght.size(); ++i)
 						{
 							wght[i].mWeight *= scale;
 						}
@@ -1669,7 +1647,7 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 		transformation.setTranslation(mesh_translation_vector);
 		transformation *= mTransform;
 
-		std::map<std::string, LLImportMaterial> materials;
+		material_map materials;
 		for (const auto& m : model->mMaterialList)
 		{
 			materials[m] = LLImportMaterial();
@@ -1688,8 +1666,7 @@ void LLDAELoader::buildJointToNodeMappingFromScene(daeElement* pRoot)
 	if (pScene)
 	{
 		const auto children = pScene->getChildren();
-		const auto childCount = (U32)children.getCount();
-		for (auto i = 0U; i < childCount; ++i)
+		for (size_t i = 0; i < children.getCount(); ++i)
 		{
 			const auto pNode = daeSafeCast<domNode>(children[i]);
 			processJointToNodeMapping(pNode);
@@ -1738,8 +1715,7 @@ void LLDAELoader::processJointToNodeMapping(domNode* pNode)
 void LLDAELoader::processChildJoints(domNode* pParentNode)
 {
 	const auto childOfChild = pParentNode->getChildren();
-	const auto childOfChildCount = (U32)childOfChild.getCount();
-	for (auto i = 0U; i < childOfChildCount; ++i)
+	for (size_t i = 0; i < childOfChild.getCount(); ++i)
 	{
 		const auto pChildNode = daeSafeCast<domNode>(childOfChild[i]);
 		if (pChildNode)
@@ -1767,7 +1743,7 @@ bool LLDAELoader::isNodeAJoint(const domNode* pNode) const
 //-----------------------------------------------------------------------------
 // verifyCount
 //-----------------------------------------------------------------------------
-bool LLDAELoader::verifyCount(const int expected, const int result) const
+bool LLDAELoader::verifyCount(const size_t expected, const size_t result) const
 {
 	if (expected != result)
 	{
@@ -1799,7 +1775,7 @@ bool LLDAELoader::verifyController(const domController* pController) const
 		{
 			//Skin is reference directly by geometry and get the vertex count from skin
 			const auto pVertexWeights = pSkin->getVertex_weights();
-			const auto vertexWeightsCount = (U32)pVertexWeights->getCount();
+			const auto vertexWeightsCount = pVertexWeights->getCount();
 			const auto pGeometry = (domGeometry*)(domElement*)uri.getElement();
 			if (const auto pMesh = pGeometry->getMesh())
 			{
@@ -1808,7 +1784,7 @@ bool LLDAELoader::verifyController(const domController* pController) const
 				{
 					const auto src = pVertices->getInput_array()[0]->getSource();
 					const auto pSource = (domSource*)(domElement*)src.getElement();
-					const auto verticesCount = (U32)pSource->getTechnique_common()->getAccessor()->getCount();
+					const auto verticesCount = pSource->getTechnique_common()->getAccessor()->getCount();
 					result = verifyCount(verticesCount, vertexWeightsCount);
 					if (!result)
 					{
@@ -1822,7 +1798,7 @@ bool LLDAELoader::verifyController(const domController* pController) const
 				}
 			}
 
-			const auto vcount_count = (U32)pVertexWeights->getVcount()->getValue().getCount();
+			const auto vcount_count = pVertexWeights->getVcount()->getValue().getCount();
 			result = verifyCount(vcount_count, vertexWeightsCount);
 			if (!result)
 			{
@@ -1830,8 +1806,8 @@ bool LLDAELoader::verifyController(const domController* pController) const
 			}
 
 			const auto& inputs = pVertexWeights->getInput_array();
-			auto sum = 0U;
-			for (auto i = 0U; i < vcount_count; ++i)
+			size_t sum = 0;
+			for (size_t i = 0; i < vcount_count; ++i)
 			{
 				sum += pVertexWeights->getVcount()->getValue()[i];
 			}
@@ -1866,11 +1842,11 @@ void LLDAELoader::extractTranslationViaSID(daeElement* pElement, LLMatrix4& tran
 		if (pMatrix)
 		{
 			const auto domArray = pMatrix->getValue();
-			for (auto i = 0U; i < 4U; ++i)
+			for (size_t i = 0; i < 4; ++i)
 			{
-				for (auto j = 0U; j < 4U; ++j)
+				for (size_t j = 0; j < 4; ++j)
 				{
-					workingTransform.mMatrix[i][j] = domArray[i + j * 4U];
+					workingTransform.mMatrix[i][j] = domArray[i + j * 4];
 				}
 			}
 			const auto trans = workingTransform.getTranslation();
@@ -1926,11 +1902,11 @@ void LLDAELoader::processJointNode(domNode* pNode, JointTransformMap& jointTrans
 			{
 				//LL_INFOS() <<"A matrix SID was however found!"<<LL_ENDL;
 				const auto domArray = pMatrix->getValue();
-				for (auto i = 0U; i < 4U; ++i)
+				for (size_t i = 0; i < 4; ++i)
 				{
-					for (auto j = 0U; j < 4U; ++j)
+					for (size_t j = 0; j < 4; ++j)
 					{
-						workingTransform.mMatrix[i][j] = domArray[i + j * 4U];
+						workingTransform.mMatrix[i][j] = domArray[i + j * 4];
 					}
 				}
 			}
@@ -1948,9 +1924,9 @@ void LLDAELoader::processJointNode(domNode* pNode, JointTransformMap& jointTrans
 
 	//Gather and handle the incoming nodes children
 	const auto childOfChild = pNode->getChildren();
-	const auto childOfChildCount = (U32)childOfChild.getCount();
+	const auto childOfChildCount = childOfChild.getCount();
 
-	for (auto i = 0U; i < childOfChildCount; ++i)
+	for (size_t i = 0; i < childOfChildCount; ++i)
 	{
 		if (const auto pChildNode = daeSafeCast<domNode>(childOfChild[i]))
 		{
@@ -2028,11 +2004,11 @@ void LLDAELoader::processElement(daeElement* element, bool& badElement, DAE* dae
 
 		LLMatrix4 matrix_transform;
 
-		for (auto i = 0U; i < 4U; ++i)
+		for (size_t i = 0; i < 4; ++i)
 		{
-			for (auto j = 0U; j < 4U; ++j)
+			for (size_t j = 0; j < 4; ++j)
 			{
-				matrix_transform.mMatrix[i][j] = dom_value[i + j * 4U];
+				matrix_transform.mMatrix[i][j] = dom_value[i + j * 4];
 			}
 		}
 
@@ -2134,8 +2110,7 @@ void LLDAELoader::processElement(daeElement* element, bool& badElement, DAE* dae
 
 	//process children
 	const auto children = element->getChildren();
-	const auto childCount = (U32)children.getCount();
-	for (auto i = 0U; i < childCount; ++i)
+	for (size_t i = 0; i < children.getCount(); ++i)
 	{
 		processElement(children[i], badElement, dae);
 	}
@@ -2150,7 +2125,6 @@ void LLDAELoader::processElement(daeElement* element, bool& badElement, DAE* dae
 std::map<std::string, LLImportMaterial> LLDAELoader::getMaterials(LLModel* model, domInstance_geometry* instance_geo, DAE* dae) const
 {
 	std::map<std::string, LLImportMaterial> materials;
-	const auto materials_list_size = (U32)model->mMaterialList.size();
 	for (const auto& material : model->mMaterialList)
 	{
 		LLImportMaterial import_material;
@@ -2160,8 +2134,7 @@ std::map<std::string, LLImportMaterial> LLDAELoader::getMaterials(LLModel* model
 			instance_geo->getDescendant(daeElement::matchType(domBind_material::domTechnique_common::ID()))))
 		{
 			const auto inst_materials = technique->getChildrenByType<domInstance_material>();
-			const auto inst_materials_size = (U32)inst_materials.getCount();
-			for (auto j = 0U; j < inst_materials_size; ++j)
+			for (size_t j = 0; j < inst_materials.getCount(); ++j)
 			{
 				std::string symbol(inst_materials[j]->getSymbol());
 
@@ -2210,9 +2183,9 @@ LLImportMaterial LLDAELoader::profileToMaterial(domProfile_COMMON* material, DAE
 		if (const auto texture = daeSafeCast<domCommon_color_or_texture_type_complexType::domTexture>(diffuse->getDescendant("texture")))
 		{
 			const auto& newparams = material->getNewparam_array();
-			if (const auto newparams_count = newparams.getCount())
+			if (newparams.getCount())
 			{
-				for (auto i = 0U; i < newparams_count; ++i)
+				for (size_t i = 0; i < newparams.getCount(); ++i)
 				{
 					if (const auto surface = newparams[i]->getSurface())
 					{
@@ -2383,8 +2356,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel, domMesh* mesh)
 {
 	auto status = LLModel::NO_ERRORS;
 	auto& tris = mesh->getTriangles_array();
-	const auto tris_count = (U32)tris.getCount();
-	for (auto i = 0U; i < tris_count; ++i)
+	for (size_t i = 0; i < tris.getCount(); ++i)
 	{
 		auto& tri = tris.get(i);
 		status = load_face_from_dom_triangles(pModel->getVolumeFaces(), pModel->getMaterialList(), tri);
@@ -2397,8 +2369,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel, domMesh* mesh)
 	}
 
 	auto& polys = mesh->getPolylist_array();
-	const auto polys_count = (U32)polys.getCount();
-	for (auto i = 0U; i < polys_count; ++i)
+	for (size_t i = 0; i < polys.getCount(); ++i)
 	{
 		auto& poly = polys.get(i);
 		status = load_face_from_dom_polylist(pModel->getVolumeFaces(), pModel->getMaterialList(), poly);
@@ -2410,8 +2381,7 @@ bool LLDAELoader::addVolumeFacesFromDomMesh(LLModel* pModel, domMesh* mesh)
 	}
 
 	auto& polygons = mesh->getPolygons_array();
-	const auto polygons_count = (U32)polygons.getCount();
-	for (auto i = 0U; i < polygons_count; ++i)
+	for (size_t i = 0; i < polygons.getCount(); ++i)
 	{
 		auto& poly = polygons.get(i);
 		status = load_face_from_dom_polygons(pModel->getVolumeFaces(), pModel->getMaterialList(), poly);

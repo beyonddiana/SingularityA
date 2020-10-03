@@ -83,7 +83,7 @@ protected:
 	void processJointToNodeMapping(domNode* pNode);
 	void processChildJoints(domNode* pParentNode);
 
-	bool verifyCount(const int expected, const int result) const;
+	bool verifyCount(const size_t expected, const size_t result) const;
 
 	//Verify that a controller matches vertex counts
 	bool verifyController(const domController* pController) const;
