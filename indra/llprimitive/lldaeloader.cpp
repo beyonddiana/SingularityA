@@ -291,7 +291,7 @@ LLModel::EModelStatus load_face_from_dom_triangles(std::vector<LLVolumeFace>& fa
 				//
 				if (vm == cv)
 				{
-					auto shared_index = vm.mIndex;
+					const auto shared_index = vm.mIndex;
 
 					// Don't share verts within the same tri, degenerate
 					//
@@ -1294,11 +1294,10 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 			{
 				//Get the children at this level
 				const auto children = pScene->getChildren();
-				const auto childCount = children.getCount();
 
 				//Process any children that are joints
 				//Not all children are joints, some code be ambient lights, cameras, geometry etc..
-				for (size_t i = 0; i < childCount; ++i)
+				for (size_t i = 0; i < children.getCount(); ++i)
 				{
 					const auto pNode = daeSafeCast<domNode>(children[i]);
 					if (isNodeAJoint(pNode))
@@ -1569,7 +1568,7 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 			{
 				if (strcmp(inputs[i]->getSemantic(), COMMON_PROFILE_INPUT_WEIGHT) == 0)
 				{
-					if (auto weight_source = daeSafeCast<domSource>(inputs[i]->getSource().getElement()))
+					if (const auto weight_source = daeSafeCast<domSource>(inputs[i]->getSource().getElement()))
 					{
 						vertex_weights = weight_source->getFloat_array();
 					}
@@ -1589,7 +1588,8 @@ void LLDAELoader::processDomModel(LLModel* model, DAE* dae, daeElement* root, do
 					//create list of weights that influence this vertex
 					LLModel::weight_list weight_list;
 
-					for (daeUInt i = 0; i < vcount[vc_idx]; ++i)
+					const auto count = vcount[vc_idx];
+					for (daeUInt i = 0; i < count; ++i)
 					{
 						//for each weight
 						const auto joint_idx = v[c_idx++];
