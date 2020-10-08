@@ -24,7 +24,6 @@
 #include "llviewerobjectlist.h"
 
 #include <time.h>
-#include <boost/lexical_cast.hpp>
 
 class NACLAntiSpamQueue
 {

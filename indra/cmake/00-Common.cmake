@@ -136,6 +136,10 @@ if (LINUX)
     -DLL_LINUX=1
     -DAPPID=secondlife
     -D_REENTRANT
+    -DGDK_DISABLE_DEPRECATED 
+    -DGTK_DISABLE_DEPRECATED
+    -DGSEAL_ENABLE
+    -DGTK_DISABLE_SINGLE_INCLUDES
   )
 
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99")
@@ -205,10 +209,10 @@ if (LINUX)
 
     if (${ARCH} STREQUAL "x86_64")
       add_definitions(-pipe)
-      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math")
-      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffast-math")
-      set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -ffast-math")
-      set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ffast-math")
+      set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffast-math -msse4.1")
+      set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ffast-math -msse4.1")
+      set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -ffast-math -msse4.1")
+      set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -ffast-math -msse4.1")
     else (${ARCH} STREQUAL "x86_64")
       if (NOT STANDALONE)
         set(MARCH_FLAG " -march=pentium4")

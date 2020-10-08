@@ -3,6 +3,7 @@
 include(APR)
 include(Boost)
 include(EXPAT)
+include(Linking)
 include(ZLIB)
 
 if (DARWIN)
@@ -18,7 +19,9 @@ set(LLCOMMON_INCLUDE_DIRS
     ${Boost_INCLUDE_DIRS}
     )
 
-set(LLCOMMON_LIBRARIES llcommon)
+set(LLCOMMON_LIBRARIES llcommon
+    fmt::fmt
+    )
 
 set(LLCOMMON_LINK_SHARED OFF CACHE BOOL "Build the llcommon target as a shared library.")
 if(LLCOMMON_LINK_SHARED)

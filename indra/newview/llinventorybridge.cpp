@@ -3152,7 +3152,7 @@ void LLFolderBridge::performAction(LLInventoryModel* model, std::string action)
 	else if ("marketplace_copy_id" == action)
 	{
 		auto id = LLMarketplaceData::instance().getListingID(mUUID);
-		gViewerWindow->getWindow()->copyTextToClipboard(utf8str_to_wstring(std::to_string(id)));
+		gViewerWindow->getWindow()->copyTextToClipboard(utf8str_to_wstring(fmt::to_string(id)));
 	}
 	// <singu> Move displaced inventory to lost and found
 	else if ("move_to_lost_and_found" == action)

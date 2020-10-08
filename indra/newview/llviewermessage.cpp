@@ -32,7 +32,6 @@
 #include "llviewerprecompiledheaders.h"
 #include "llviewermessage.h"
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/lexical_cast.hpp>
 
 #include "llanimationstates.h"
 #include "llaudioengine.h" 
@@ -1938,7 +1937,7 @@ void process_improved_im(LLMessageSystem *msg, void **user_data)
 			{
 				LLSD args;
 				args["SOURCE"] = from_id;
-				args["AMOUNT"] = boost::lexical_cast<std::string>(SpamNewlines);
+				args["AMOUNT"] = fmt::to_string(SpamNewlines);
 				LLNotificationsUtil::add("AntiSpamNewlineFlood", args);
 			}
 			return;

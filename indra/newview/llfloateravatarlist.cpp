@@ -52,7 +52,6 @@
 #include "llworld.h"
 
 #include <boost/date_time.hpp>
-#include <boost/lexical_cast.hpp>
 
 // [RLVa:KB]
 #include "rlvhandler.h"
@@ -1006,7 +1005,7 @@ void LLFloaterAvatarList::refreshAvatarList()
 					color = sRadarTextYoung;
 				}
 			}
-			agep.value = age_set ? boost::lexical_cast<std::string>(entry->mAge) : "?";
+			agep.value = age_set ? fmt::to_string(entry->mAge) : "?";
 			agep.color = color;
 			element.columns.add(agep);
 		}
@@ -1069,7 +1068,7 @@ void LLFloaterAvatarList::refreshAvatarList()
 	else
 	{
 		LLStringUtil::format_map_t args;
-		args["[COUNT]"] = boost::lexical_cast<std::string>(mAvatars.size());
+		args["[COUNT]"] = fmt::to_string(mAvatars.size());
 		setTitle(getString("TitleWithCount", args));
 	}
 

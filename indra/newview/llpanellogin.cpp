@@ -83,7 +83,6 @@
 // <edit>
 #include "llspinctrl.h"
 #include "llviewermessage.h"
-#include <boost/lexical_cast.hpp>
 // </edit>
 #include <boost/algorithm/string.hpp>
 

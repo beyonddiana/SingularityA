@@ -40,33 +40,71 @@
 ==========================================================
 */
 
+/*
+The inline keyword is supported by C99 but not by C90.
+Most compilers implement their own version of this keyword ...
+*/
+#ifndef INLINE
+#if defined(_MSC_VER)
+#define INLINE __forceinline
+#elif defined(__GNUC__)
+#define INLINE __inline__
+#elif defined(__MWERKS__)
+#define INLINE inline
+#else
+/* add other compilers here ... */
+#define INLINE
+#endif /* defined(<Compiler>) */
+#endif /* INLINE */
 #if defined(OPJ_STATIC) || !defined(_WIN32)
 #define OPJ_API
 #define OPJ_CALLCONV
 #else
 #define OPJ_CALLCONV __stdcall
 /*
-The following ifdef block is the standard way of creating macros which make exporting 
+The following ifdef block is the standard way of creating macros which make exporting
 from a DLL simpler. All files within this DLL are compiled with the OPJ_EXPORTS
 symbol defined on the command line. this symbol should not be defined on any project
-that uses this DLL. This way any other project whose source files include this file see 
-OPJ_API functions as being imported from a DLL, wheras this DLL sees symbols
+that uses this DLL. This way any other project whose source files include this file see
+OPJ_API functions as being imported from a DLL, whereas this DLL sees symbols
 defined with this macro as being exported.
 */
-#if defined(OPJ_EXPORTS) || defined(DLL_EXPORT)
-#define OPJ_API __declspec(dllexport)
-#else
-#define OPJ_API __declspec(dllimport)
-#endif /* OPJ_EXPORTS */
+#   if defined(OPJ_EXPORTS) || defined(DLL_EXPORT)
+#       define OPJ_API __declspec(dllexport)
+#   else
+#       define OPJ_API __declspec(dllimport)
+#   endif /* OPJ_EXPORTS */
 #endif /* !OPJ_STATIC || !_WIN32 */
 
 typedef int opj_bool;
 #define OPJ_TRUE 1
 #define OPJ_FALSE 0
 
+typedef char          OPJ_CHAR;
+typedef float         OPJ_FLOAT32;
+typedef double        OPJ_FLOAT64;
+typedef unsigned char OPJ_BYTE;
+
+#include "opj_stdint.h"
+
+typedef int8_t   OPJ_INT8;
+typedef uint8_t  OPJ_UINT8;
+typedef int16_t  OPJ_INT16;
+typedef uint16_t OPJ_UINT16;
+typedef int32_t  OPJ_INT32;
+typedef uint32_t OPJ_UINT32;
+typedef int64_t  OPJ_INT64;
+typedef uint64_t OPJ_UINT64;
+
+typedef int64_t  OPJ_OFF_T; /* 64-bit file offset type */
+
+#include <stdio.h>
+typedef size_t   OPJ_SIZE_T;
+
 /* Avoid compile-time warning because parameter is not used */
 #define OPJ_ARG_NOT_USED(x) (void)(x)
-/* 
+
+/*
 ==========================================================
    Useful constant definitions
 ==========================================================

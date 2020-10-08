@@ -3,6 +3,7 @@
 
   
   <string name="status_parse_error">Fehler: Fehler beim DAE-Parsen – Details siehe Protokoll.</string>
+  <string name="status_bind_shape_orientation">Warnung: Verbundform-Matrix befindet sich nicht in Standard-X-Vorwärtsrichtung.</string>
   <string name="status_material_mismatch">Fehler: Das Material des Modells ist keine Teilmenge des Referenzmodells.</string>
   <string name="status_reading_file">Wird geladen...</string>
   <string name="status_generating_meshes">Netze werden generiert...</string>
@@ -22,6 +23,7 @@
   <string name="mesh_status_too_many_vertices">Detailstufe hat zu viele Vertices.</string>
   <string name="mesh_status_missing_lod">Erforderliche Detailstufe fehlt.</string>
   <string name="mesh_status_invalid_material_list">Detailstufenmaterial ist keine Teilmenge des Referenzmodells.</string>
+  <string name="phys_status_vertex_limit_exceeded">Einige physische Hüllen überschreiten die Vertexbeschränkungen.</string>
   <string name="layer_all">Alle</string> <!-- Text to display in physics layer combo box for "all layers" -->
   <string name="decomposing">Analyse läuft...</string>
   <string name="simplifying">Vereinfachung läuft...</string>

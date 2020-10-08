@@ -66,7 +66,6 @@
 #include "aicurl.h"
 
 #include <mutex>
-#include "boost/lexical_cast.hpp"
 
 #ifndef LL_WINDOWS
 #include "netdb.h"
@@ -110,7 +109,7 @@ const U32 MAX_TEXTURE_UPLOAD_RETRIES = 5;
 static S32 dump_num = 0;
 std::string make_dump_name(std::string prefix, S32 num)
 {
-	return prefix + boost::lexical_cast<std::string>(num) + std::string(".xml");
+	return prefix + fmt::to_string(num) + std::string(".xml");
 	
 }
 void dump_llsd_to_file(const LLSD& content, std::string filename);

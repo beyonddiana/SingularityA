@@ -259,8 +259,7 @@ std::string LLWeb::expandURLSubstitutions(const std::string &url,
 	{
 		parcel_id = parcel->getLocalID();
 	}
-	substitution["PARCEL_ID"] = llformat("%d", parcel_id);
-
+	substitution["PARCEL_ID"] = fmt::to_string(parcel_id);
 	// expand all of the substitution strings and escape the url
 	std::string expanded_url = url;
 	LLStringUtil::format(expanded_url, substitution);

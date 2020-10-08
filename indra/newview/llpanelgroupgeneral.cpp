@@ -60,7 +60,6 @@
 #include "llviewerwindow.h"
 
 #include "hippogridmanager.h"
-#include <boost/lexical_cast.hpp>
 
 // consts
 const S32 MATURE_CONTENT = 1;
@@ -268,7 +267,7 @@ BOOL LLPanelGroupGeneral::postBuild()
 
 	std::string member_count(LLTrans::getString("LoadingData"));
 	if (LLGroupMgrGroupData* gdatap = LLGroupMgr::getInstance()->getGroupData(mGroupID))
-		member_count = boost::lexical_cast<std::string>(gdatap->mMembers.size());
+		member_count = fmt::to_string(gdatap->mMembers.size());
 	getChild<LLUICtrl>("text_owners_and_visible_members")->setTextArg("[COUNT]", member_count);
 
 	return LLPanelGroupTab::postBuild();
@@ -836,7 +835,7 @@ void LLPanelGroupGeneral::updateMembers()
 		}
 	}
 
-	getChild<LLUICtrl>("text_owners_and_visible_members")->setTextArg("[COUNT]", boost::lexical_cast<std::string>(gdatap->mMembers.size()));
+	getChild<LLUICtrl>("text_owners_and_visible_members")->setTextArg("[COUNT]", fmt::to_string(gdatap->mMembers.size()));
 
 	if (mMemberProgress == gdatap->mMembers.end())
 	{

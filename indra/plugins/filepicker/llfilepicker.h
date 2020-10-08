@@ -43,6 +43,13 @@
 #include "legacy.h"
 #include <vector>
 
+#if LL_GTK
+extern "C" {
+// mostly for Linux, possible on others
+# include <gtk/gtk.h>
+}
+#endif // LL_GTK
+
 // This class is used as base class of a singleton and is therefore not
 // allowed to have any static members or static local variables!
 class LLFilePickerBase

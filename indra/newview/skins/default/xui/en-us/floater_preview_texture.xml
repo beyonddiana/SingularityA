@@ -53,7 +53,7 @@
 		label="Copy To Inventory" left="9" mouse_opaque="true" name="Copy To Inventory" scale_image="true" width="170" />
 	<text type="string" length="1" bg_visible="false" border_drop_shadow_visible="false" border_visible="false" 
 		bottom="35" drop_shadow_visible="true" enabled="true" follows="left|bottom" font="SansSerifSmall" h_pad="0" 
-		halign="left" height="14" left="13" mouse_opaque="true" name="dimensions" v_pad="0" width="135">
+		halign="left" height="14" left="13" mouse_opaque="true" name="dimensions" v_pad="0">
 			Dimensions: [WIDTH] x [HEIGHT]
 	</text>
 	<text type="string" length="1" bg_visible="false" border_drop_shadow_visible="false" border_visible="false" 

@@ -24,36 +24,29 @@
  * $/LicenseInfo$
  */
 
-#if LL_MSVC
-#pragma warning (disable : 4263)
-#pragma warning (disable : 4264)
-#endif
-#include "dae.h"
-#include "dom/domAsset.h"
-#include "dom/domBind_material.h"
-#include "dom/domCOLLADA.h"
-#include "dom/domConstants.h"
-#include "dom/domController.h"
-#include "dom/domEffect.h"
-#include "dom/domGeometry.h"
-#include "dom/domInstance_geometry.h"
-#include "dom/domInstance_material.h"
-#include "dom/domInstance_node.h"
-#include "dom/domInstance_effect.h"
-#include "dom/domMaterial.h"
-#include "dom/domMatrix.h"
-#include "dom/domNode.h"
-#include "dom/domProfile_COMMON.h"
-#include "dom/domRotate.h"
-#include "dom/domScale.h"
-#include "dom/domTranslate.h"
-#include "dom/domVisual_scene.h"
-#if LL_MSVC
-#pragma warning (default : 4263)
-#pragma warning (default : 4264)
-#endif
+#include <dae.h>
+#include <dom/domAsset.h>
+#include <dom/domBind_material.h>
+#include <dom/domCOLLADA.h>
+#include <dom/domConstants.h>
+#include <dom/domController.h>
+#include <dom/domEffect.h>
+#include <dom/domGeometry.h>
+#include <dom/domInstance_geometry.h>
+#include <dom/domInstance_material.h>
+#include <dom/domInstance_node.h>
+#include <dom/domInstance_effect.h>
+#include <dom/domMaterial.h>
+#include <dom/domMatrix.h>
+#include <dom/domNode.h>
+#include <dom/domProfile_COMMON.h>
+#include <dom/domRotate.h>
+#include <dom/domScale.h>
+#include <dom/domTranslate.h>
+#include <dom/domVisual_scene.h>
 
-#include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string/replace.hpp>
+#include <boost/regex.hpp>
 
 #include "lldaeloader.h"
 #include "llsdserialize.h"
@@ -61,8 +54,6 @@
 
 #include "llmatrix4a.h"
 
-#include <boost/regex.hpp>
-#include <boost/algorithm/string/replace.hpp>
 
 std::string colladaVersion[VERSIONTYPE_COUNT+1] = 
 {
@@ -81,6 +72,7 @@ static const std::string lod_suffix[LLModel::NUM_LODS] =
 };
 
 const U32 LIMIT_MATERIALS_OUTPUT = 12;
+
 bool get_dom_sources(const domInputLocalOffset_Array& inputs, S32& pos_offset, S32& tc_offset, S32& norm_offset, S32 &idx_stride,
 					 domSource* &pos_source, domSource* &tc_source, domSource* &norm_source)
 {
@@ -2415,7 +2407,7 @@ std::string LLDAELoader::getElementLabel(daeElement *element)
 
 		if (ind > 0)
 		{
-			index_string = "_" + boost::lexical_cast<std::string>(ind);
+			index_string = "_" + fmt::to_string(ind);
 		}
 
 		// if parent has a name or ID, use it

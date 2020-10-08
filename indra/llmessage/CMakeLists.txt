@@ -64,7 +64,6 @@ set(llmessage_SOURCE_FILES
     llmessagetemplate.cpp
     llmessagetemplateparser.cpp
     llmessagethrottle.cpp
-    llmime.cpp
     llnamevalue.cpp
     llnullcipher.cpp
     llpacketack.cpp
@@ -163,7 +162,6 @@ set(llmessage_HEADER_FILES
     llmessagetemplate.h
     llmessagetemplateparser.h
     llmessagethrottle.h
-    llmime.h
     llmsgvariabletype.h
     llnamevalue.h
     llnullcipher.h
@@ -241,7 +239,6 @@ if (LL_TESTS)
   include(Tut)
 
   SET(llmessage_TEST_SOURCE_FILES
-    llmime.cpp
     llnamevalue.cpp
     lltrustedmessageservice.cpp
     lltemplatemessagedispatcher.cpp

@@ -33,7 +33,6 @@
 
 #include "llviewerprecompiledheaders.h"
 
-#include <boost/lexical_cast.hpp>
 
 #include "llfeaturemanager.h"
 #include "llviewershadermgr.h"
@@ -591,7 +590,7 @@ BOOL LLViewerShaderMgr::loadBasicShaders()
 
 	std::map<std::string, std::string> attribs;
 	attribs["MAX_JOINTS_PER_MESH_OBJECT"] = 
-		boost::lexical_cast<std::string>(LLSkinningUtil::getMaxJointCount());
+		fmt::to_string(LLSkinningUtil::getMaxJointCount());
 	
 	// We no longer have to bind the shaders to global glhandles, they are automatically added to a map now.
 	for (U32 i = 0; i < shaders.size(); i++)
@@ -1687,7 +1686,7 @@ BOOL LLViewerShaderMgr::loadShadersDeferred()
 		gFXAAProgram.mShaderFiles.push_back(make_pair("deferred/postDeferredNoTCV.glsl", GL_VERTEX_SHADER_ARB));
 		gFXAAProgram.mShaderFiles.push_back(make_pair("deferred/fxaaF.glsl", GL_FRAGMENT_SHADER_ARB));
 		static LLCachedControl<uint32_t> fxaaQuality("FXAAQuality", 12);
-		gFXAAProgram.addPermutation("FXAA_QUALITY_M_PRESET", std::to_string(fxaaQuality.get()));
+		gFXAAProgram.addPermutation("FXAA_QUALITY_M_PRESET", fmt::to_string(fxaaQuality.get()));
 		gFXAAProgram.mShaderLevel = mVertexShaderLevel[SHADER_DEFERRED];
 		success = gFXAAProgram.createShader(NULL, NULL);
 	}

@@ -54,7 +54,6 @@
 
 #include "hippogridmanager.h"
 
-#include <boost/lexical_cast.hpp>
 ///----------------------------------------------------------------------------
 /// Local function declarations, constants, enums, and typedefs
 ///----------------------------------------------------------------------------
@@ -97,7 +96,7 @@ LLFloaterPay::LLFloaterPay(const std::string& name,
 
 	for(U32 i = 0; i < MAX_PAY_BUTTONS; ++i)
 	{
-		mQuickPayButton[i] = getChild<LLButton>("fastpay " + boost::lexical_cast<std::string>(mQuickPayInfo[i]));
+		mQuickPayButton[i] = getChild<LLButton>("fastpay " + fmt::to_string(mQuickPayInfo[i]));
 		mQuickPayButton[i]->setClickedCallback(boost::bind(&LLFloaterPay::onGive,this,boost::ref(mQuickPayInfo[i])));
 		mQuickPayButton[i]->setVisible(FALSE);
 		mQuickPayButton[i]->setLabelArg("[CURRENCY]", gHippoGridManager->getConnectedGrid()->getCurrencySymbol());

@@ -2,6 +2,7 @@
 <floater name="Model Preview" title="Subir Modelo">
 	<string name="status_idle"></string>
 	<string name="status_parse_error">Error: Problemas en el análisis del Dae - mira el log para más detalles.</string>
+	<string name="status_bind_shape_orientation">Atención: la matriz de forma unida no está en orientación X-forward estándar.</string>
 	<string name="status_material_mismatch">Error: Material del modelo no es un subconjunto del modelo de referencia.</string>
 	<string name="status_reading_file">Cargando...</string>
 	<string name="status_generating_meshes">Generando Mallas...</string>
@@ -21,6 +22,7 @@
 	<string name="mesh_status_too_many_vertices">El nivel de detalle tiene demasiados vértices.</string>
 	<string name="mesh_status_missing_lod">Nivel de detalle inexistente.</string>
 	<string name="mesh_status_invalid_material_list">Datos de LOD no son un subconjunto del modelo de referencia.</string>
+	<string name="phys_status_vertex_limit_exceeded">Algunas apariencias físicas sobrepasan las limitaciones de vértices.</string>
 	<string name="layer_all">Todas</string> <!-- Text to display in physics layer combo box for "all layers" -->
 	<string name="decomposing">Analizando...</string>
 	<string name="simplifying">Simplificando...</string>

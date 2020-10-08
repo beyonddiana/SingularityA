@@ -414,7 +414,7 @@ void LLResMgr::getIntegerString( std::string& output, S32 input ) const
 		{
 			if (fraction == remaining_count)
 			{
-				fraction_string = llformat("%d", fraction);
+				fraction_string = fmt::to_string(fraction);
 			}
 			else
 			{

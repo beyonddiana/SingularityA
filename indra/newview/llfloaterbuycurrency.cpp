@@ -277,19 +277,19 @@ void LLFloaterBuyCurrencyUI::updateUI()
 		S32 balance = gStatusBar->getBalance();
 		childShow("balance_label");
 		childShow("balance_amount");
-		childSetTextArg("balance_amount", "[AMT]", llformat("%d", balance));
+		childSetTextArg("balance_amount", "[AMT]", fmt::to_string(balance));
 		childSetTextArg("balance_amount", "[CURRENCY]", gHippoGridManager->getConnectedGrid()->getCurrencySymbol());
 		
 		S32 buying = mManager.getAmount();
 		childShow("buying_label");
 		childShow("buying_amount");
-		childSetTextArg("buying_amount", "[AMT]", llformat("%d", buying));
+		childSetTextArg("buying_amount", "[AMT]", fmt::to_string(buying));
 		childSetTextArg("buying_amount", "[CURRENCY]", gHippoGridManager->getConnectedGrid()->getCurrencySymbol());
 		
 		S32 total = balance + buying;
 		childShow("total_label");
 		childShow("total_amount");
-		childSetTextArg("total_amount", "[AMT]", llformat("%d", total));
+		childSetTextArg("total_amount", "[AMT]", fmt::to_string(total));
 		childSetTextArg("total_amount", "[CURRENCY]", gHippoGridManager->getConnectedGrid()->getCurrencySymbol());
 
 		childSetVisible("purchase_warning_repurchase", false);

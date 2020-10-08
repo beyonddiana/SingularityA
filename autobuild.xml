@@ -876,11 +876,11 @@
             <key>archive</key>
             <map>
               <key>hash</key>
-              <string>ccd495598894c8e2e541a348015ee3f0</string>
+              <string>7f631a7f1742a5786e1f9de1d2424350</string>
               <key>hash_algorithm</key>
               <string>md5</string>
               <key>url</key>
-              <string>/opt/devel/fmodstudio-2.00.07.200182252-linux64-200182252.tar.bz2</string>
+              <string>https://pkg.alchemyviewer.org/repository/autobuild-internal/fmodstudio/linux64/fmodstudio-2.01.04.417-linux64-417.tar.bz2</string>
             </map>
             <key>name</key>
             <string>linux64</string>
@@ -890,11 +890,11 @@
             <key>archive</key>
             <map>
               <key>hash</key>
-              <string>d32efb193ffcd73bcba4875ddfd17bf0</string>
+              <string>50ce25e855c10d3b39f5461f34661c7f</string>
               <key>hash_algorithm</key>
               <string>md5</string>
               <key>url</key>
-              <string>https://pkg.alchemyviewer.org/repository/autobuild-internal/fmodstudio/windows/fmodstudio-2.00.07.4-windows-4.tar.bz2</string>
+              <string>https://pkg.alchemyviewer.org/repository/autobuild-internal/fmodstudio/windows/fmodstudio-2.01.04.417-windows-417.tar.bz2</string>
             </map>
             <key>name</key>
             <string>windows</string>
@@ -904,18 +904,18 @@
             <key>archive</key>
             <map>
               <key>hash</key>
-              <string>0604fd6b53ceaf14ce04d0de1bea51b8</string>
+              <string>e13b156ca861c36b388e18df0e8e20fb</string>
               <key>hash_algorithm</key>
               <string>md5</string>
               <key>url</key>
-              <string>https://pkg.alchemyviewer.org/repository/autobuild-internal/fmodstudio/windows64/fmodstudio-2.00.07.4-windows64-4.tar.bz2</string>
+              <string>https://pkg.alchemyviewer.org/repository/autobuild-internal/fmodstudio/windows64/fmodstudio-2.01.04.417-windows64-417.tar.bz2</string>
             </map>
             <key>name</key>
             <string>windows64</string>
           </map>
         </map>
         <key>version</key>
-        <string>2.00.07.4</string>
+        <string>2.01.04.417</string>
       </map>
       <key>fonts</key>
       <map>

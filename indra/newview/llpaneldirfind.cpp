@@ -67,12 +67,7 @@
 #include "hippogridmanager.h"
 #include "lfsimfeaturehandler.h"
 
-#if LL_MSVC
-// disable boost::lexical_cast warning
-#pragma warning (disable:4702)
-#endif
 #include <boost/tokenizer.hpp>
-#include <boost/lexical_cast.hpp>
 
 //---------------------------------------------------------------------------
 // LLPanelDirFindAll - Google search appliance based search
@@ -468,7 +463,7 @@ const std::string LLPanelDirFind::getSearchURLSuffix(bool inc_pg, bool inc_matur
 				(inc_pg ? SEARCH_PG : SEARCH_NONE) |
 				(inc_mature ? SEARCH_MATURE : SEARCH_NONE) |
 				(inc_adult ? SEARCH_ADULT : SEARCH_NONE);
-			url.replace(url.find(substring), substring.length(), boost::lexical_cast<std::string>(maturityFlag));
+			url.replace(url.find(substring), substring.length(), fmt::to_string(maturityFlag));
 			
 			// Include region and x/y position, not for the GSA, but
 			// just to get logs on the web server for search_proxy.php

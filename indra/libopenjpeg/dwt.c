@@ -31,11 +31,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#define OPJ_SKIP_POISON
+#include "opj_includes.h"
+
 #ifdef __SSE__
 #include <xmmintrin.h>
 #endif
 
-#include "opj_includes.h"
+#if defined(__GNUC__)
+#pragma GCC poison malloc calloc realloc free
+#endif
 
 /** @defgroup DWT DWT - Implementation of a discrete wavelet transform */
 /*@{*/
@@ -499,7 +504,7 @@ void dwt_calc_explicit_stepsizes(opj_tccp_t * tccp, int prec) {
 /* <summary>                             */
 /* Determine maximum computed resolution level for inverse wavelet transform */
 /* </summary>                            */
-static int dwt_decode_max_resolution(opj_tcd_resolution_t* restrict r, int i) {
+static int dwt_decode_max_resolution(opj_tcd_resolution_t* OPJ_RESTRICT r, int i) {
 	int mr	= 1;
 	int w;
 	while( --i ) {
@@ -531,7 +536,7 @@ static void dwt_decode_tile(opj_tcd_tilecomp_t* tilec, int numres, DWT1DFN dwt_1
 	v.mem = h.mem;
 
 	while( --numres) {
-		int * restrict tiledp = tilec->data;
+		int * OPJ_RESTRICT tiledp = tilec->data;
 		int j;
 
 		++tr;
@@ -565,48 +570,49 @@ static void dwt_decode_tile(opj_tcd_tilecomp_t* tilec, int numres, DWT1DFN dwt_1
 	opj_aligned_free(h.mem);
 }
 
-static void v4dwt_interleave_h(v4dwt_t* restrict w, float* restrict a, int x, int size){
-	float* restrict bi = (float*) (w->wavelet + w->cas);
+static void v4dwt_interleave_h(v4dwt_t* OPJ_RESTRICT w, float* OPJ_RESTRICT a, int x, int size) {
+	float* OPJ_RESTRICT bi = (float*)(w->wavelet + w->cas);
 	int count = w->sn;
 	int i, k;
-	for(k = 0; k < 2; ++k){
-		if (count + 3 * x < size && ((size_t) a & 0x0f) == 0 && ((size_t) bi & 0x0f) == 0 && (x & 0x0f) == 0) {
+	for (k = 0; k < 2; ++k) {
+		if (count + 3 * x < size && ((size_t)a & 0x0f) == 0 && ((size_t)bi & 0x0f) == 0 && (x & 0x0f) == 0) {
 			/* Fast code path */
-			for(i = 0; i < count; ++i){
+			for (i = 0; i < count; ++i) {
 				int j = i;
-				bi[i*8    ] = a[j];
+				bi[i * 8] = a[j];
 				j += x;
-				bi[i*8 + 1] = a[j];
+				bi[i * 8 + 1] = a[j];
 				j += x;
-				bi[i*8 + 2] = a[j];
+				bi[i * 8 + 2] = a[j];
 				j += x;
-				bi[i*8 + 3] = a[j];
+				bi[i * 8 + 3] = a[j];
 			}
-		} else {
+		}
+		else {
 			/* Slow code path */
-		for(i = 0; i < count; ++i){
-			int j = i;
-			bi[i*8    ] = a[j];
-			j += x;
-			if(j > size) continue;
-			bi[i*8 + 1] = a[j];
-			j += x;
-			if(j > size) continue;
-			bi[i*8 + 2] = a[j];
-			j += x;
-			if(j > size) continue;
-			bi[i*8 + 3] = a[j];
+			for (i = 0; i < count; ++i) {
+				int j = i;
+				bi[i * 8] = a[j];
+				j += x;
+				if (j > size) continue;
+				bi[i * 8 + 1] = a[j];
+				j += x;
+				if (j > size) continue;
+				bi[i * 8 + 2] = a[j];
+				j += x;
+				if (j > size) continue;
+				bi[i * 8 + 3] = a[j];
+			}
 		}
-		}
-		bi = (float*) (w->wavelet + 1 - w->cas);
+		bi = (float*)(w->wavelet + 1 - w->cas);
 		a += w->sn;
 		size -= w->sn;
 		count = w->dn;
 	}
 }
 
-static void v4dwt_interleave_v(v4dwt_t* restrict v , float* restrict a , int x){
-	v4* restrict bi = v->wavelet + v->cas;
+static void v4dwt_interleave_v(v4dwt_t* OPJ_RESTRICT v , float* OPJ_RESTRICT a , int x){
+	v4* OPJ_RESTRICT bi = v->wavelet + v->cas;
 	int i;
 	for(i = 0; i < v->sn; ++i){
 		memcpy(&bi[i*2], &a[i*x], 4 * sizeof(float));
@@ -621,7 +627,7 @@ static void v4dwt_interleave_v(v4dwt_t* restrict v , float* restrict a , int x){
 #ifdef __SSE__
 
 static void v4dwt_decode_step1_sse(v4* w, int count, const __m128 c){
-	__m128* restrict vw = (__m128*) w;
+	__m128* OPJ_RESTRICT vw = (__m128*) w;
 	int i;
 	/* 4x unrolled loop */
 	for(i = 0; i < count >> 2; ++i){
@@ -642,22 +648,39 @@ static void v4dwt_decode_step1_sse(v4* w, int count, const __m128 c){
 }
 
 static void v4dwt_decode_step2_sse(v4* l, v4* w, int k, int m, __m128 c){
-	__m128* restrict vl = (__m128*) l;
-	__m128* restrict vw = (__m128*) w;
+	__m128* OPJ_RESTRICT vl = (__m128*) l;
+	__m128* OPJ_RESTRICT vw = (__m128*) w;
 	int i;
 	__m128 tmp1, tmp2, tmp3;
 	tmp1 = vl[0];
-	for(i = 0; i < m; ++i){
+	for (i = 0; i < m - 3; i += 4) {
+		__m128 tmp4, tmp5, tmp6, tmp7, tmp8, tmp9;
+		tmp2 = vw[-1];
+		tmp3 = vw[0];
+		tmp4 = vw[1];
+		tmp5 = vw[2];
+		tmp6 = vw[3];
+		tmp7 = vw[4];
+		tmp8 = vw[5];
+		tmp9 = vw[6];
+		vw[-1] = _mm_add_ps(tmp2, _mm_mul_ps(_mm_add_ps(tmp1, tmp3), c));
+		vw[1] = _mm_add_ps(tmp4, _mm_mul_ps(_mm_add_ps(tmp3, tmp5), c));
+		vw[3] = _mm_add_ps(tmp6, _mm_mul_ps(_mm_add_ps(tmp5, tmp7), c));
+		vw[5] = _mm_add_ps(tmp8, _mm_mul_ps(_mm_add_ps(tmp7, tmp9), c));
+		tmp1 = tmp9;
+		vw += 8;
+	}
+	for ( ; i < m; ++i) {
 		tmp2 = vw[-1];
 		tmp3 = vw[ 0];
 		vw[-1] = _mm_add_ps(tmp2, _mm_mul_ps(_mm_add_ps(tmp1, tmp3), c));
 		tmp1 = tmp3;
 		vw += 2;
 	}
-	vl = vw - 2;
 	if(m >= k){
 		return;
 	}
+	vl = vw - 2;
 	c = _mm_add_ps(c, c);
 	c = _mm_mul_ps(c, vl[0]);
 	for(; m < k; ++m){
@@ -670,7 +693,7 @@ static void v4dwt_decode_step2_sse(v4* l, v4* w, int k, int m, __m128 c){
 #else
 
 static void v4dwt_decode_step1(v4* w, int count, const float c){
-	float* restrict fw = (float*) w;
+	float* OPJ_RESTRICT fw = (float*) w;
 	int i;
 	for(i = 0; i < count; ++i){
 		float tmp1 = fw[i*8    ];
@@ -685,8 +708,8 @@ static void v4dwt_decode_step1(v4* w, int count, const float c){
 }
 
 static void v4dwt_decode_step2(v4* l, v4* w, int k, int m, float c){
-	float* restrict fl = (float*) l;
-	float* restrict fw = (float*) w;
+	float* OPJ_RESTRICT fl = (float*) l;
+	float* OPJ_RESTRICT fw = (float*) w;
 	int i;
 	for(i = 0; i < m; ++i){
 		float tmp1_1 = fl[0];
@@ -737,42 +760,44 @@ static void v4dwt_decode_step2(v4* l, v4* w, int k, int m, float c){
 /* <summary>                             */
 /* Inverse 9-7 wavelet transform in 1-D. */
 /* </summary>                            */
-static void v4dwt_decode(v4dwt_t* restrict dwt){
+static void v4dwt_decode(v4dwt_t* OPJ_RESTRICT dwt){
 	int a, b;
 	if(dwt->cas == 0) {
-		if(!((dwt->dn > 0) || (dwt->sn > 1))){
+		if (dwt->dn <= 0 && dwt->sn <= 1) {
 			return;
 		}
 		a = 0;
 		b = 1;
 	}else{
-		if(!((dwt->sn > 0) || (dwt->dn > 1))) {
+		if (dwt->sn <= 0 && dwt->dn <= 1) {
 			return;
 		}
 		a = 1;
 		b = 0;
 	}
+	v4* OPJ_RESTRICT waveleta = dwt->wavelet + a;
+	v4* OPJ_RESTRICT waveletb = dwt->wavelet + b;
 #ifdef __SSE__
-	v4dwt_decode_step1_sse(dwt->wavelet+a, dwt->sn, _mm_set1_ps(K));
-	v4dwt_decode_step1_sse(dwt->wavelet+b, dwt->dn, _mm_set1_ps(c13318));
-	v4dwt_decode_step2_sse(dwt->wavelet+b, dwt->wavelet+a+1, dwt->sn, int_min(dwt->sn, dwt->dn-a), _mm_set1_ps(dwt_delta));
-	v4dwt_decode_step2_sse(dwt->wavelet+a, dwt->wavelet+b+1, dwt->dn, int_min(dwt->dn, dwt->sn-b), _mm_set1_ps(dwt_gamma));
-	v4dwt_decode_step2_sse(dwt->wavelet+b, dwt->wavelet+a+1, dwt->sn, int_min(dwt->sn, dwt->dn-a), _mm_set1_ps(dwt_beta));
-	v4dwt_decode_step2_sse(dwt->wavelet+a, dwt->wavelet+b+1, dwt->dn, int_min(dwt->dn, dwt->sn-b), _mm_set1_ps(dwt_alpha));
+	v4dwt_decode_step1_sse(waveleta, dwt->sn, _mm_set1_ps(K));
+	v4dwt_decode_step1_sse(waveletb, dwt->dn, _mm_set1_ps(c13318));
+	v4dwt_decode_step2_sse(waveletb, waveleta + 1, dwt->sn, int_min(dwt->sn, dwt->dn-a), _mm_set1_ps(dwt_delta));
+	v4dwt_decode_step2_sse(waveleta, waveletb + 1, dwt->dn, int_min(dwt->dn, dwt->sn-b), _mm_set1_ps(dwt_gamma));
+	v4dwt_decode_step2_sse(waveletb, waveleta + 1, dwt->sn, int_min(dwt->sn, dwt->dn-a), _mm_set1_ps(dwt_beta));
+	v4dwt_decode_step2_sse(waveleta, waveletb + 1, dwt->dn, int_min(dwt->dn, dwt->sn-b), _mm_set1_ps(dwt_alpha));
 #else
-	v4dwt_decode_step1(dwt->wavelet+a, dwt->sn, K);
-	v4dwt_decode_step1(dwt->wavelet+b, dwt->dn, c13318);
-	v4dwt_decode_step2(dwt->wavelet+b, dwt->wavelet+a+1, dwt->sn, int_min(dwt->sn, dwt->dn-a), dwt_delta);
-	v4dwt_decode_step2(dwt->wavelet+a, dwt->wavelet+b+1, dwt->dn, int_min(dwt->dn, dwt->sn-b), dwt_gamma);
-	v4dwt_decode_step2(dwt->wavelet+b, dwt->wavelet+a+1, dwt->sn, int_min(dwt->sn, dwt->dn-a), dwt_beta);
-	v4dwt_decode_step2(dwt->wavelet+a, dwt->wavelet+b+1, dwt->dn, int_min(dwt->dn, dwt->sn-b), dwt_alpha);
+	v4dwt_decode_step1(waveleta, dwt->sn, K);
+	v4dwt_decode_step1(waveletb, dwt->dn, c13318);
+	v4dwt_decode_step2(waveletb, waveleta + 1, dwt->sn, int_min(dwt->sn, dwt->dn-a), dwt_delta);
+	v4dwt_decode_step2(waveleta, waveletb + 1, dwt->dn, int_min(dwt->dn, dwt->sn-b), dwt_gamma);
+	v4dwt_decode_step2(waveletb, waveleta + 1, dwt->sn, int_min(dwt->sn, dwt->dn-a), dwt_beta);
+	v4dwt_decode_step2(waveleta, waveletb + 1, dwt->dn, int_min(dwt->dn, dwt->sn-b), dwt_alpha);
 #endif
 }
 
 /* <summary>                             */
 /* Inverse 9-7 wavelet transform in 2-D. */
 /* </summary>                            */
-void dwt_decode_real(opj_tcd_tilecomp_t* restrict tilec, int numres){
+void dwt_decode_real(opj_tcd_tilecomp_t* OPJ_RESTRICT tilec, int numres){
 	v4dwt_t h;
 	v4dwt_t v;
 
@@ -787,7 +812,7 @@ void dwt_decode_real(opj_tcd_tilecomp_t* restrict tilec, int numres){
 	v.wavelet = h.wavelet;
 
 	while( --numres) {
-		float * restrict aj = (float*) tilec->data;
+		float * OPJ_RESTRICT aj = (float*) tilec->data;
 		int bufsize = (tilec->x1 - tilec->x0) * (tilec->y1 - tilec->y0);
 		int j;
 

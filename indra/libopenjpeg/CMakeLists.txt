@@ -26,6 +26,7 @@ set(openjpeg_SOURCE_FILES
     mct.c
     mqc.c
     openjpeg.c
+    opj_malloc.c
     phix_manager.c
     pi.c
     ppix_manager.c

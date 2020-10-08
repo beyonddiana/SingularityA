@@ -43,11 +43,6 @@
 #include "llcombobox.h"
 #include "lllineeditor.h"
 #include "llviewerwindow.h"
-#if LL_MSVC
-// disable boost::lexical_cast warning
-#pragma warning (disable:4702)
-#endif
-#include <boost/lexical_cast.hpp>
 
 LLFloaterPostProcess* LLFloaterPostProcess::sPostProcess = NULL;
 
@@ -190,7 +185,7 @@ void LLFloaterPostProcess::syncMenu()
 			//llsd["uniform"][1]=>"uniform[1]"
 			for(S32 i=0;i<it->second.size();++i)
 			{
-				childSetValue(it->first+'['+boost::lexical_cast<std::string>(i)+']',it->second[i]);
+				childSetValue(it->first+'['+fmt::to_string(i)+']',it->second[i]);
 			}
 		}
 		else

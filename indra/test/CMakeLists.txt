@@ -41,7 +41,6 @@ set(test_SOURCE_FILES
     llinventoryparcel_tut.cpp
     lliohttpserver_tut.cpp
     lljoint_tut.cpp
-    llmime_tut.cpp
     llmessageconfig_tut.cpp
     llmodularmath_tut.cpp
     llnamevalue_tut.cpp

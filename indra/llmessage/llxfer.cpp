@@ -30,7 +30,6 @@
 #include "lluuid.h"
 #include "llerror.h"
 #include "llmath.h"
-#include "u64.h"
 
 //number of bytes sent in each message
 const U32 LL_XFER_CHUNK_SIZE = 1000;
@@ -347,12 +346,12 @@ void LLXfer::abort (S32 result_code)
 
 	if (result_code != LL_ERR_CIRCUIT_GONE)
 	{
-	gMessageSystem->newMessageFast(_PREHASH_AbortXfer);
-	gMessageSystem->nextBlockFast(_PREHASH_XferID);
-	gMessageSystem->addU64Fast(_PREHASH_ID, mID);
-	gMessageSystem->addS32Fast(_PREHASH_Result, result_code);
-	
-	gMessageSystem->sendMessage(mRemoteHost);
+		gMessageSystem->newMessageFast(_PREHASH_AbortXfer);
+		gMessageSystem->nextBlockFast(_PREHASH_XferID);
+		gMessageSystem->addU64Fast(_PREHASH_ID, mID);
+		gMessageSystem->addS32Fast(_PREHASH_Result, result_code);
+
+		gMessageSystem->sendMessage(mRemoteHost);
 	}
 
 	mStatus = e_LL_XFER_ABORTED;
@@ -363,7 +362,7 @@ void LLXfer::abort (S32 result_code)
 
 std::string LLXfer::getFileName() 
 {
-	return U64_to_str(mID);
+	return fmt::to_string(mID);
 }
 
 ///////////////////////////////////////////////////////////

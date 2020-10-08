@@ -24,11 +24,6 @@
  * $/LicenseInfo$
  */
 
-#if LL_MSVC
-// disable warning about boost::lexical_cast returning uninitialized data
-// when it fails to parse the string
-#pragma warning (disable:4701)
-#endif
 
 #include "linden_common.h"
 
@@ -230,7 +225,7 @@ void LLAvatarAppearance::initInstance()
 		for (U32 lod = 0; lod < mesh_dict->mLOD; lod++)
 		{
 			LLAvatarJointMesh* mesh = createAvatarJointMesh();
-			std::string mesh_name = "m" + mesh_dict->mName + std::to_string(lod);
+			std::string mesh_name = fmt::format(FMT_STRING("m{:s}{:d}"), mesh_dict->mName, lod);
 			// We pre-pended an m - need to capitalize first character for camelCase
 			mesh_name[1] = toupper(mesh_name[1]);
 			mesh->setName(mesh_name);

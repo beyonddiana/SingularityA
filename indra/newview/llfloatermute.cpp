@@ -45,8 +45,6 @@
 #include "llmutelist.h"
 #include "llnamelistctrl.h"
 
-#include <boost/lexical_cast.hpp>
-
 //
 // Constants
 //

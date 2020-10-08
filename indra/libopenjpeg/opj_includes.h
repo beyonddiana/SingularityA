@@ -40,6 +40,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <assert.h>
+#include <limits.h>
 
 /*
  ==========================================================
@@ -54,55 +56,114 @@
  ==========================================================
 */
 
+/* Are restricted pointers available? (C99) */
+#if (__STDC_VERSION__ >= 199901L)
+#define OPJ_RESTRICT restrict
+#else
+/* Not a C99 compiler */
+#if defined(__GNUC__)
+#define OPJ_RESTRICT __restrict__
+#elif defined(_MSC_VER) && (_MSC_VER >= 1400)
+#define OPJ_RESTRICT __restrict
+#else
+#define OPJ_RESTRICT /* restrict */
+#endif
+#endif
+
 /* Ignore GCC attributes if this is not GCC */
 #ifndef __GNUC__
 	#define __attribute__(x) /* __attribute__(x) */
 #endif
 
-/*
-The inline keyword is supported by C99 but not by C90. 
-Most compilers implement their own version of this keyword ... 
-*/
-#ifndef INLINE
-	#if defined(_MSC_VER)
-		#define INLINE __forceinline
-	#elif defined(__GNUC__)
-		#define INLINE __inline__
-	#elif defined(__MWERKS__)
-		#define INLINE inline
-	#else 
-		/* add other compilers here ... */
-		#define INLINE 
-	#endif /* defined(<Compiler>) */
-#endif /* INLINE */
 
-/* Are restricted pointers available? (C99) */
-#if (__STDC_VERSION__ != 199901L)
-	/* Not a C99 compiler */
-	#ifdef __GNUC__
-		#define restrict __restrict__
-	#else
-		#define restrict /* restrict */
-	#endif
-#endif
-
-/* MSVC and Borland C do not have lrintf */
-#if defined(_MSC_VER) || defined(__BORLANDC__)
-static INLINE long lrintf(float f){
+/* MSVC before 2013 and Borland C do not have lrintf */
+#if defined(_MSC_VER)
+#include <intrin.h>
+static INLINE long opj_lrintf(float f)
+{
 #ifdef _M_X64
-    return (long)((f>0.0f) ? (f + 0.5f):(f -0.5f));
-#else
+    return _mm_cvt_ss2si(_mm_load_ss(&f));
+
+    /* commented out line breaks many tests */
+    /* return (long)((f>0.0f) ? (f + 0.5f):(f -0.5f)); */
+#elif defined(_M_IX86)
     int i;
- 
     _asm{
         fld f
         fistp i
     };
- 
+
+    return i;
+#else
+    return (long)((f>0.0f) ? (f + 0.5f) : (f - 0.5f));
+#endif
+}
+#elif defined(__BORLANDC__)
+static INLINE long opj_lrintf(float f)
+{
+#ifdef _M_X64
+    return (long)((f > 0.0f) ? (f + 0.5f) : (f - 0.5f));
+#else
+    int i;
+
+    _asm {
+        fld f
+        fistp i
+    };
+
     return i;
 #endif
 }
+#else
+static INLINE long opj_lrintf(float f)
+{
+    return lrintf(f);
+}
 #endif
+
+#if defined(_MSC_VER) && (_MSC_VER < 1400)
+#define vsnprintf _vsnprintf
+#endif
+
+/* MSVC x86 is really bad at doing int64 = int32 * int32 on its own. Use intrinsic. */
+#if defined(_MSC_VER) && (_MSC_VER >= 1400) && !defined(__INTEL_COMPILER) && defined(_M_IX86)
+#   include <intrin.h>
+#   pragma intrinsic(__emul)
+#endif
+
+/* Apparently Visual Studio doesn't define __SSE__ / __SSE2__ macros */
+#if defined(_M_X64)
+/* Intel 64bit support SSE and SSE2 */
+#   ifndef __SSE__
+#       define __SSE__ 1
+#   endif
+#   ifndef __SSE2__
+#       define __SSE2__ 1
+#   endif
+#   if !defined(__SSE4_1__) && defined(__AVX__)
+#       define __SSE4_1__ 1
+#   endif
+#endif
+
+/* For x86, test the value of the _M_IX86_FP macro. */
+/* See https://msdn.microsoft.com/en-us/library/b0084kay.aspx */
+#if defined(_M_IX86_FP)
+#   if _M_IX86_FP >= 1
+#       ifndef __SSE__
+#           define __SSE__ 1
+#       endif
+#   endif
+#   if _M_IX86_FP >= 2
+#       ifndef __SSE2__
+#           define __SSE2__ 1
+#       endif
+#   endif
+#endif
+
+/* Type to use for bit-fields in internal headers */
+typedef unsigned int OPJ_BITFIELD;
+
+#define OPJ_UNUSED(x) (void)x
 
 #include "j2k_lib.h"
 #include "opj_malloc.h"

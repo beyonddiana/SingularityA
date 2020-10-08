@@ -35,6 +35,21 @@
 #include "llerror.h"
 #include "basic_plugin_base.h"		// For PLS_INFOS etc.
 
+#if LL_SDL
+
+#if LL_GTK
+extern "C" {
+#include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#if GTK_CHECK_VERSION(2, 24, 0)
+#include <gdk/gdkx.h>
+#endif
+}
+#include <clocale>
+#endif // LL_GTK
+
+#endif // LL_SDL
+
 //
 // Globals
 //
@@ -1332,11 +1347,21 @@ GtkWindow* LLFilePickerBase::buildFilePicker(bool is_save, bool is_folder, std::
 		// Make GTK tell the window manager to associate this
 		// dialog with our non-GTK raw X11 window, which should try
 		// to keep it on top etc.
-		if (mX11WindowID != None)
+		if (None != mX11WindowID)
 		{
 			gtk_widget_realize(GTK_WIDGET(win)); // so we can get its gdkwin
-			GdkWindow *gdkwin = gdk_window_foreign_new(mX11WindowID);
-			gdk_window_set_transient_for(GTK_WIDGET(win)->window, gdkwin);
+
+#if GTK_CHECK_VERSION(2, 24, 0)
+			GdkWindow *gdkwin = gdk_x11_window_foreign_new_for_display(gdk_display_get_default(), static_cast<Window>(mX11WindowID));
+#else
+			GdkWindow *gdkwin = gdk_window_foreign_new(static_cast<GdkNativeWindow>(mX11WindowID));
+#endif
+
+			gdk_window_set_transient_for(gtk_widget_get_window(GTK_WIDGET(win)), gdkwin);
+		}
+		else
+		{
+			LL_WARNS() << "Hmm, couldn't get xwid to use for transient." << LL_ENDL;
 		}
 #  endif //LL_X11
 

@@ -199,8 +199,8 @@ void LLPanelAvatarSecondLife::processProperties(void* data, EAvatarProcessorType
 				{
 					date birthday(year, month, day), today(day_clock::local_day());
 					std::ostringstream born_on;
-					const std::locale fmt(std::locale::classic(), new date_facet(gSavedSettings.getString("ShortDateFormat").data()));
-					born_on.imbue(fmt);
+					const std::locale date_fmt(std::locale::classic(), new date_facet(gSavedSettings.getString("ShortDateFormat").data()));
+					born_on.imbue(date_fmt);
 					born_on << birthday << " (" << today - birthday << ')';
 					childSetValue("born", born_on.str());
 				}

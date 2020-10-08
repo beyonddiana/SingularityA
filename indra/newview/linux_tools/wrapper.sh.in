@@ -55,9 +55,8 @@
 
 ## - For advanced debugging cases, you can run the viewer under the
 ##   control of another program, such as strace, gdb, or valgrind.  If
-##   you're building your own viewer, bear in mind that the executable
-##   in the bin directory will be stripped: you should replace it with
-##   an unstripped binary before you run.
+##   you're building your own viewer, run the configure step with
+##   -DPACKAGE:BOOL=OFF to produce an unstripped binary for debugging.
 if [ -n "$ASCENDED_DEVELOPER" ]; then
 	if [ "$ASCENDED_DEVELOPER" = "1" ]; then
 		export LL_WRAPPER='gdb --args'

@@ -1,9 +1,8 @@
 # -*- cmake -*-
 
 include(OpenGL)
-include(Prebuilt)
 
-if (STANDALONE)
+if (LINUX)
   include(FindSDL)
 
   # This should be done by FindSDL.  Sigh.
@@ -12,14 +11,7 @@ if (STANDALONE)
       SDL_INCLUDE_DIR
       SDL_LIBRARY
       )
-else (STANDALONE)
-  if (LINUX)
-    use_prebuilt_binary(SDL)
-    set (SDL_FOUND TRUE)
-    set (SDL_INCLUDE_DIR ${LIBS_PREBUILT_DIR}/include)
-    set (SDL_LIBRARY SDL)
-  endif (LINUX)
-endif (STANDALONE)
+endif (LINUX)
 
 if (SDL_FOUND)
   add_definitions(-DLL_SDL=1)

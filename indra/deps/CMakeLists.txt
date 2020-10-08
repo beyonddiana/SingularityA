@@ -14,7 +14,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-  GIT_TAG        0463665ef136d685fe07a564d93c782456456d3d
+  GIT_TAG        8d78045e7cb44d39ad4cd95dd27816b8749e1944
   )
 FetchContent_Declare(
   nlohmann_json
@@ -25,7 +25,7 @@ FetchContent_Declare(
 FetchContent_Declare(
   absl
   GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
-  GIT_TAG        0033c9ea91a52ade7c6b725aa2ef3cbe15463421
+  GIT_TAG        768eb2ca2857342673fcd462792ce04b8bac3fa3
 )
 
 # This is a hack because absl has dumb cmake

@@ -1427,7 +1427,7 @@ void t1_encode_cblks(
 			opj_tcd_resolution_t *res = &tilec->resolutions[resno];
 
 			for (bandno = 0; bandno < res->numbands; ++bandno) {
-				opj_tcd_band_t* restrict band = &res->bands[bandno];
+				opj_tcd_band_t* OPJ_RESTRICT band = &res->bands[bandno];
         int bandconst = 8192 * 8192 / ((int) floor(band->stepsize * 8192));
 
 				for (precno = 0; precno < res->pw * res->ph; ++precno) {
@@ -1435,8 +1435,8 @@ void t1_encode_cblks(
 
 					for (cblkno = 0; cblkno < prc->cw * prc->ch; ++cblkno) {
 						opj_tcd_cblk_enc_t* cblk = &prc->cblks.enc[cblkno];
-						int* restrict datap;
-						int* restrict tiledp;
+						int* OPJ_RESTRICT datap;
+						int* OPJ_RESTRICT tiledp;
 						int cblk_w;
 						int cblk_h;
 						int i, j;
@@ -1517,14 +1517,14 @@ void t1_decode_cblks(
 		opj_tcd_resolution_t* res = &tilec->resolutions[resno];
 
 		for (bandno = 0; bandno < res->numbands; ++bandno) {
-			opj_tcd_band_t* restrict band = &res->bands[bandno];
+			opj_tcd_band_t* OPJ_RESTRICT band = &res->bands[bandno];
 
 			for (precno = 0; precno < res->pw * res->ph; ++precno) {
 				opj_tcd_precinct_t* precinct = &band->precincts[precno];
 
 				for (cblkno = 0; cblkno < precinct->cw * precinct->ch; ++cblkno) {
 					opj_tcd_cblk_dec_t* cblk = &precinct->cblks.dec[cblkno];
-					int* restrict datap;
+					int* OPJ_RESTRICT datap;
 					int cblk_w, cblk_h;
 					int x, y;
 					int i, j;
@@ -1566,7 +1566,7 @@ void t1_decode_cblks(
 					}
 
 					if (tccp->qmfbid == 1) {
-						int* restrict tiledp = &tilec->data[(y * tile_w) + x];
+						int* OPJ_RESTRICT tiledp = &tilec->data[(y * tile_w) + x];
 						for (j = 0; j < cblk_h; ++j) {
 							for (i = 0; i < cblk_w; ++i) {
 								int tmp = datap[(j * cblk_w) + i];
@@ -1574,9 +1574,9 @@ void t1_decode_cblks(
 							}
 						}
 					} else {		/* if (tccp->qmfbid == 0) */
-						float* restrict tiledp = (float*) &tilec->data[(y * tile_w) + x];
+						float* OPJ_RESTRICT tiledp = (float*) &tilec->data[(y * tile_w) + x];
 						for (j = 0; j < cblk_h; ++j) {
-							float* restrict tiledp2 = tiledp;
+							float* OPJ_RESTRICT tiledp2 = tiledp;
 							for (i = 0; i < cblk_w; ++i) {
 								float tmp = *datap * band->stepsize;
 								*tiledp2 = tmp;
