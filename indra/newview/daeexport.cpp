@@ -935,11 +935,11 @@ void DAESaver::addJointsAndWeights(daeElement* skin, const char* parent_id, LLVi
 	vertex_weights->setCount(vcounts_list.getCount());
 }
 
-void DAESaver::addJointNodes(daeElement* parent, LLJoint* root, LLVector3 parent_scale)
+void DAESaver::addJointNodes(daeElement* parent, LLJoint* joint, LLVector3 joint_parent_scale)
 {
 	// Set up joint node
 	domNode* root_node = daeSafeCast<domNode>(parent->add("node"));
-	const char* name = root->getName().c_str();
+	const char* name = joint->getName().c_str();
 	root_node->setId(name);
 	root_node->setSid(name);
 	root_node->setName(name);
@@ -953,33 +953,47 @@ void DAESaver::addJointNodes(daeElement* parent, LLJoint* root, LLVector3 parent
 	LLMatrix4 joint_mtx;
 	LLVector3 local_position, local_scale;
 
-	if (!root->hasAttachmentPosOverride(local_position, LLUUID()))
+	auto has_attachment_overrides = false;
+	if (!joint->hasAttachmentPosOverride(local_position, LLUUID()))
 	{
-		//position = root->getDefaultPosition();
-		local_position = root->getPosition();
+		// Should this use LLAvatarJoint::getSkinOffset()?
+		local_position = joint->getPosition();
+		has_attachment_overrides = true;
 	}
 
-	if (!root->hasAttachmentScaleOverride(local_scale, LLUUID()))
+	if (!joint->hasAttachmentScaleOverride(local_scale, LLUUID()))
 	{
-		local_scale = root->getScale();
+		local_scale = joint->getScale();
+		has_attachment_overrides = true;
 	}
 
 	// Calculate "inverse" of parent scale
-	auto parent_inv_scale = LLVector3(1.f / parent_scale[VX], 1.f / parent_scale[VY], 1.f / parent_scale[VZ]);
+	auto parent_inv_scale = LLVector3(
+		1.f / joint_parent_scale[VX],
+		1.f / joint_parent_scale[VY],
+		1.f / joint_parent_scale[VZ]);
 
+
+	// TODO: take into account AvatarJoint::inheritScale() == true
 	// Apply inverse of parent scale to local scale
 	auto scale = local_scale.scaledVec(parent_inv_scale);
 	//auto position = local_position.scaledVec(parent_inv_scale);
 	auto position = local_position;
 
+	// Only use rotation if this joint is an animation joint (i.e. not a collision volume or attachment point)
+	// This is really dirty but I don't want to patch llavatarjoint just for this.
+	auto is_collision_volume = dynamic_cast<LLAvatarJointCollisionVolume*>(joint) != NULL;
+	auto is_skeleton_joint = !(is_collision_volume || has_attachment_overrides);
+	auto rotation = is_skeleton_joint ? LLQuaternion() : joint->getRotation();
+
 	// Assume identity rotation for joint matrix?
-	joint_mtx.initAll(scale, LLQuaternion(), position);
+	joint_mtx.initAll(scale, rotation, position);
 
 	// Write joint matrix into DOM element value
 	append(mtx_elem->getValue(), joint_mtx);
 
 	// Recurse over child joints
-	for (LLJoint::child_list_t::const_iterator iter = root->mChildren.begin(); iter != root->mChildren.end(); ++iter)
+	for (LLJoint::child_list_t::const_iterator iter = joint->mChildren.begin(); iter != joint->mChildren.end(); ++iter)
 	{
 		// Use local scale for parent scale
 		// To not apply parent inverse scale to this
