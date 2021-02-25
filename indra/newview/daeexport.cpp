@@ -983,8 +983,7 @@ void DAESaver::addJointNodes(daeElement* parent, LLJoint* joint, LLVector3 joint
 	// Only use rotation if this joint is an animation joint (i.e. not a collision volume or attachment point)
 	// This is really dirty but I don't want to patch llavatarjoint just for this.
 	auto is_collision_volume = dynamic_cast<LLAvatarJointCollisionVolume*>(joint) != NULL;
-	auto is_skeleton_joint = !(is_collision_volume || has_attachment_overrides);
-	auto rotation = is_skeleton_joint ? LLQuaternion() : joint->getRotation();
+	auto rotation = is_collision_volume ? joint->getRotation() : LLQuaternion();
 
 	// Assume identity rotation for joint matrix?
 	joint_mtx.initAll(scale, rotation, position);
