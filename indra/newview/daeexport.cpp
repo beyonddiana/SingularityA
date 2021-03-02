@@ -957,13 +957,13 @@ void DAESaver::addJointNodes(daeElement* parent, LLJoint* joint, LLVector3 joint
 	if (!joint->hasAttachmentPosOverride(local_position, LLUUID()))
 	{
 		// Should this use LLAvatarJoint::getSkinOffset()?
-		local_position = joint->getPosition();
+		local_position = joint->getDefaultPosition();
 		has_attachment_overrides = true;
 	}
 
 	if (!joint->hasAttachmentScaleOverride(local_scale, LLUUID()))
 	{
-		local_scale = joint->getScale();
+		local_scale = joint->getDefaultScale();
 		has_attachment_overrides = true;
 	}
 
