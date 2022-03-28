@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Register a protocol handler (default: handle_secondlifeprotocol.sh) for
 # URLs of the form secondlife://...

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #(C) 2011 SIANA GEARZ
 
 usage() {

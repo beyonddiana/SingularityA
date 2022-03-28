@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Install @VIEWER_CHANNEL@. This script can install the viewer both
 # system-wide and for an individual user.

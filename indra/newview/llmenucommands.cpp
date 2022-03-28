@@ -148,7 +148,7 @@ struct CommWrapper
 
 struct MenuFloaterDict final : public LLSingleton<MenuFloaterDict>
 {
-	typedef std::map<const std::string, std::pair<std::function<void ()>, std::function<bool ()> > > menu_floater_map_t;
+	typedef std::map<const std::string, std::pair<std::function<void ()>, std::function<bool ()>>> menu_floater_map_t;
 	menu_floater_map_t mEntries;
 
 	MenuFloaterDict()

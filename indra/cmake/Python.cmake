@@ -30,8 +30,8 @@ if (WINDOWS)
       )
   endif()
 
-elseif (EXISTS /etc/arch-release)
-  # On Archlinux, use Python 2
+elseif (EXISTS /usr/bin/python2)
+  # if this is there, use it
 
   find_program(PYTHON_EXECUTABLE python2 PATHS /usr/bin)
 
