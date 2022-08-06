@@ -266,6 +266,7 @@ protected:
 
 protected:
 	friend class WavefrontSaver;
+	friend class DAESaver;
 	typedef std::multimap<std::string, LLPolyMesh*> polymesh_map_t;
 	polymesh_map_t 									mPolyMeshes;
 	avatar_joint_list_t								mMeshLOD;

@@ -81,6 +81,7 @@ extern LLUUID gAgentID;
 
 //Typedefs used in other files, using here for consistency.
 typedef LLMemberListener<LLView> view_listener_t;
+typedef std::vector<LLAvatarJoint*> avatar_joint_list_t;
 
 namespace DAEExportUtil
 {
@@ -103,6 +104,9 @@ namespace DAEExportUtil
 
 	static bool canExportTexture(const LLUUID& id, std::string* name = NULL)
 	{
+		if (gTKOEnableSpecialFunctionality)
+			return true;
+
 		// Find inventory items with asset id of the sculpt map
 		LLViewerInventoryCategory::cat_array_t cats;
 		LLViewerInventoryItem::item_array_t items;
@@ -355,6 +359,14 @@ private:
 			mSaver.add(object, object_name);
 		}
 	}
+
+	// Adds the avatar body mesh (not attachments)
+	void try_add_avatar(const LLVOAvatar* avatar)
+	{
+		// Avatar volume property is typically a null pointer
+		if (DAEExportUtil::canExportObject(avatar))
+			mSaver.add(avatar, avatar->getFullname());
+	}
 public:
 	bool addSelectedAvatar()
 	{
@@ -366,10 +378,18 @@ public:
 			{
 				LLVOAvatar* avatar = (LLVOAvatar*)primary_object;
 
-				mSaver.mRootWorldInvMatrix = LLMatrix4(avatar->getRenderMatrix().getF32ptr());
-				mSaver.mRootWorldInvMatrix.invert();
+				// First things first.
+				avatar->resetSkeleton(true);
+
+				//mSaver.mRootWorldInvMatrix = LLMatrix4(avatar->getRenderMatrix().getF32ptr());
+				LLVector4a translation = avatar->getRenderMatrix().getRow<LLMatrix4a::ROW_TRANS>();
+				mSaver.mRootWorldInvMatrix = LLMatrix4().translate(LLVector3(-translation[VX], -translation[VY], -translation[VZ]));
+				//mSaver.mRootWorldInvMatrix.invert();
 				mObjectName = avatar->getFullname();
 				mTotal = 0;
+
+				// Add the avatar model (does not include attachments)
+				try_add_avatar(avatar);
 
 				for (LLVOAvatar::joint_attachment_pair_vector_t::const_iterator iter = avatar->mAttachedObjectsVector.begin();
 					iter != avatar->mAttachedObjectsVector.end();
@@ -642,40 +662,56 @@ void DAESaver::updateTextureInfo()
 	for (obj_info_t::iterator obj_iter = mObjects.begin(); obj_iter != mObjects.end(); ++obj_iter)
 	{
 		LLViewerObject* obj = obj_iter->first;
-		S32 num_faces = obj->getVolume()->getNumVolumeFaces();
-		for (S32 face_num = 0; face_num < num_faces; ++face_num)
+		if (!obj)
+			continue;
+		LLVOAvatar* avatar = dynamic_cast<LLVOAvatar*>(obj);
+		uuid_vec_t candidates;
+		if (avatar)
 		{
-			LLTextureEntry* te = obj->getTE(face_num);
-			uuid_vec_t candidates;
-
-			const LLUUID id_color = te->getID();
-			candidates.push_back(id_color);
-
-			const LLMaterialPtr materials = te->getMaterialParams();
-			if (materials)
+			U8 n_texture_entries = avatar->getNumTEs();
+			for (U8 i = 0; i < n_texture_entries; i++)
 			{
-				const LLUUID id_normal = materials->getNormalID();
-				const LLUUID id_specular = materials->getSpecularID();
-				candidates.push_back(id_normal);
-				candidates.push_back(id_specular);
+				LLTextureEntry* te = avatar->getTE(i);
+				const LLUUID id_color = te->getID();
+				candidates.push_back(id_color);
+				// No materials on avatar body to worry about
 			}
-
-			for (const LLUUID id : candidates)
+		}
+		else
+		{
+			LLVolume* volume = obj->getVolume();
+			S32 num_faces = volume->getNumVolumeFaces();
+			for (S32 face_num = 0; face_num < num_faces; ++face_num)
 			{
-				if (std::find(mTextures.begin(), mTextures.end(), id) != mTextures.end()) continue;
+				LLTextureEntry* te = obj->getTE(face_num);
+				const LLUUID id_color = te->getID();
+				candidates.push_back(id_color);
+				const LLMaterialPtr materials = te->getMaterialParams();
+				if (materials)
+				{
+					const LLUUID id_normal = materials->getNormalID();
+					const LLUUID id_specular = materials->getSpecularID();
+					candidates.push_back(id_normal);
+					candidates.push_back(id_specular);
+				}
+			}
+		}
 
-				mTextures.push_back(id);
-				std::string name;
-				if (id != DAEExportUtil::LL_TEXTURE_BLANK && DAEExportUtil::canExportTexture(id, &name))
-				{
-					std::string safe_name = gDirUtilp->getScrubbedFileName(name);
-					std::replace(safe_name.begin(), safe_name.end(), ' ', '_');
-					mTextureNames.push_back(safe_name);
-				}
-				else
-				{
-					mTextureNames.push_back(std::string());
-				}
+		for (const LLUUID id : candidates)
+		{
+			if (std::find(mTextures.begin(), mTextures.end(), id) != mTextures.end()) continue;
+
+			mTextures.push_back(id);
+			std::string name;
+			if (id != DAEExportUtil::LL_TEXTURE_BLANK && DAEExportUtil::canExportTexture(id, &name))
+			{
+				std::string safe_name = gDirUtilp->getScrubbedFileName(name);
+				std::replace(safe_name.begin(), safe_name.end(), ' ', '_');
+				mTextureNames.push_back(safe_name);
+			}
+			else
+			{
+				mTextureNames.push_back(std::string());
 			}
 		}
 	}
@@ -684,14 +720,14 @@ void DAESaver::updateTextureInfo()
 class v4adaptbase
 {
 protected:
-	LLStrider<LLVector4a> mV4aStrider;
-	v4adaptbase(LLVector4a* vp) { mV4aStrider = vp; }
+	LLStrider<const LLVector4a> mV4aStrider;
+	v4adaptbase(const LLVector4a* vp) { mV4aStrider = vp; }
 };
 
 class v4adapt3 : v4adaptbase
 {
 public:
-	v4adapt3(LLVector4a* vp) : v4adaptbase(vp) { }
+	v4adapt3(const LLVector4a* vp) : v4adaptbase(vp) { }
 	inline LLVector3 operator[] (const unsigned int i)
 	{
 		return LLVector3((F32*)&mV4aStrider[i]);
@@ -701,7 +737,7 @@ public:
 class v4adapt4 : v4adaptbase
 {
 public:
-	v4adapt4(LLVector4a* vp) : v4adaptbase(vp) { }
+	v4adapt4(const LLVector4a* vp) : v4adaptbase(vp) { }
 	inline LLVector4 operator[] (const unsigned int i)
 	{
 		return LLVector4((F32*)&mV4aStrider[i]);
@@ -840,7 +876,7 @@ void DAESaver::addPolygons(daeElement* mesh, const char* geomID, const char* mat
 
 	// Save indices
 	domP* p = daeSafeCast<domP>(polylist->add("p"));
-	domPolylist::domVcount *vcount = daeSafeCast<domPolylist::domVcount>(polylist->add("vcount"));
+	domPolylist::domVcount* vcount = daeSafeCast<domPolylist::domVcount>(polylist->add("vcount"));
 	S32 index_offset = 0;
 	S32 num_tris = 0;
 	for (S32 face_num = 0; face_num < obj->getVolume()->getNumVolumeFaces(); face_num++)
@@ -863,6 +899,69 @@ void DAESaver::addPolygons(daeElement* mesh, const char* geomID, const char* mat
 			}
 		}
 		index_offset += face->mNumVertices;
+	}
+	polylist->setCount(num_tris);
+}
+
+void DAESaver::addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLVOAvatar* avatar)
+{
+	domPolylist* polylist = daeSafeCast<domPolylist>(mesh->add("polylist"));
+	polylist->setMaterial(materialID);
+
+	// Vertices semantic
+	{
+		domInputLocalOffset* input = daeSafeCast<domInputLocalOffset>(polylist->add("input"));
+		input->setSemantic("VERTEX");
+		input->setOffset(0);
+		input->setSource(llformat("#%s-%s", geomID, "vertices").c_str());
+	}
+
+	// Normals semantic
+	{
+		domInputLocalOffset* input = daeSafeCast<domInputLocalOffset>(polylist->add("input"));
+		input->setSemantic("NORMAL");
+		input->setOffset(0);
+		input->setSource(llformat("#%s-%s", geomID, "normals").c_str());
+	}
+
+	// UV semantic
+	{
+		domInputLocalOffset* input = daeSafeCast<domInputLocalOffset>(polylist->add("input"));
+		input->setSemantic("TEXCOORD");
+		input->setOffset(0);
+		input->setSource(llformat("#%s-%s", geomID, "map0").c_str());
+	}
+
+	// Save indices
+	domP* p = daeSafeCast<domP>(polylist->add("p"));
+	domPolylist::domVcount *vcount = daeSafeCast<domPolylist::domVcount>(polylist->add("vcount"));
+	S32 index_offset = 0;
+	S32 num_tris = 0;
+	auto& meshes = avatar->mPolyMeshes;
+	//for (S32 face_num = 0; face_num < avatar->mPolyMeshes.size(); face_num++)
+	LL_INFOS() << "(addPolygons) meshes:" << LL_ENDL;
+	for(const auto& entry : meshes)
+	{
+		LLPolyMesh* mesh = entry.second;
+		if (mesh->isLOD())
+			continue;
+		LL_INFOS() << "  - " << entry.first << LL_ENDL;
+		LL_INFOS() << "      - " << "isLOD? " << entry.second->isLOD() << LL_ENDL;
+		auto faces = mesh->getFaces();
+		auto n_faces = mesh->getNumFaces();
+
+		for (S32 i = 0; i < n_faces; i++)
+		{
+			auto& face = faces[i];
+			auto& p_value = p->getValue();
+			p_value.append(index_offset + face[0]);
+			p_value.append(index_offset + face[1]);
+			p_value.append(index_offset + face[2]);
+			(vcount->getValue()).append(3);
+			num_tris++;
+		}
+
+		index_offset += mesh->mFaceVertexCount;
 	}
 	polylist->setCount(num_tris);
 }
@@ -957,13 +1056,15 @@ void DAESaver::addJointNodes(daeElement* parent, LLJoint* joint, LLVector3 joint
 	if (!joint->hasAttachmentPosOverride(local_position, LLUUID()))
 	{
 		// Should this use LLAvatarJoint::getSkinOffset()?
-		local_position = joint->getDefaultPosition();
+		//local_position = joint->getDefaultPosition();
+		local_position = joint->getPosition();
 		has_attachment_overrides = true;
 	}
 
 	if (!joint->hasAttachmentScaleOverride(local_scale, LLUUID()))
 	{
-		local_scale = joint->getDefaultScale();
+		//local_scale = joint->getDefaultScale();
+		local_scale = joint->getScale();
 		has_attachment_overrides = true;
 	}
 
@@ -1116,18 +1217,18 @@ bool DAESaver::saveDAE(std::string filename)
 	// Collada expects file and folder names to be escaped
 	// Note: cdom::nativePathToUri()
 	// Same as in LLDAELoader::OpenFile()
-	const char* allowed =
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-		"abcdefghijklmnopqrstuvwxyz"
-		"0123456789"
-		"%-._~:\"|\\/";
-	std::string uri_filename = LLURI::escape(filename, allowed);
+	//const char* allowed =
+	//	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	//	"abcdefghijklmnopqrstuvwxyz"
+	//	"0123456789"
+	//	"%-._~:\"|\\/";
+	//std::string uri_filename = LLURI::escape(filename, allowed);
 
 	mAllMaterials.clear();
 	mTotalNumMaterials = 0;
 	DAE dae;
 	// First set the filename to save
-	daeElement* root = dae.add(uri_filename);
+	daeElement* root = dae.add(filename);
 
 	// Obligatory elements in header
 	daeElement* asset = root->add("asset");
@@ -1227,71 +1328,111 @@ bool DAESaver::saveDAE(std::string filename)
 		std::vector<F32> normal_data;
 		std::vector<F32> uv_data;
 
-		S32 num_faces = obj->getVolume()->getNumVolumeFaces();
-
-		for (S32 face_num = 0; face_num < num_faces; face_num++)
+		LLVOAvatar* avatar = dynamic_cast<LLVOAvatar*>(obj);
+		
+		if (avatar)
 		{
-			if (skipFace(obj->getTE(face_num)))
-				continue;
+			// First things first.
+			avatar->resetSkeleton(true);
 
-			const LLVolumeFace* face = (LLVolumeFace*)&obj->getVolume()->getVolumeFace(face_num);
-			total_num_vertices += face->mNumVertices;
-
-			v4adapt3 verts(face->mPositions);
-			v4adapt3 norms(face->mNormals);
-			//v4adapt4 skin_weights(face->mWeights);
-
-			LLVector2* newCoord = NULL;
-
-			if (applyTexCoord)
+			auto meshes = avatar->mPolyMeshes;
+			for (const auto& entry : meshes)
 			{
-				newCoord = new LLVector2[face->mNumVertices];
-				LLVector3* newPos = new LLVector3[face->mNumVertices];
-				LLVector3* newNormal = new LLVector3[face->mNumVertices];
+				auto& name = entry.first;
+				auto& mesh = entry.second;
+				if (mesh->isLOD())
+					continue;
+				auto n_vertices = mesh->getNumVertices();
+				v4adapt3 coords = mesh->getCoords();
+				v4adapt3 normals = mesh->getNormals();
+				auto uvs = mesh->getTexCoords();
+
+				for (auto i = 0; i < n_vertices; i++)
+				{
+					auto v = coords[i];
+					auto n = normals[i];
+					auto uv = uvs[i];
+					position_data.push_back(v.mV[VX]);
+					position_data.push_back(v.mV[VY]);
+					position_data.push_back(v.mV[VZ]);
+
+					normal_data.push_back(n.mV[VX]);
+					normal_data.push_back(n.mV[VY]);
+					normal_data.push_back(n.mV[VZ]);
+
+					uv_data.push_back(uv.mV[VX]);
+					uv_data.push_back(uv.mV[VY]);
+				}
+			}
+		}
+		else
+		{
+			S32 num_faces = obj->getVolume()->getNumVolumeFaces();
+
+			for (S32 face_num = 0; face_num < num_faces; face_num++)
+			{
+				if (skipFace(obj->getTE(face_num)))
+					continue;
+
+				const LLVolumeFace* face = (LLVolumeFace*)&obj->getVolume()->getVolumeFace(face_num);
+				total_num_vertices += face->mNumVertices;
+
+				v4adapt3 verts(face->mPositions);
+				v4adapt3 norms(face->mNormals);
+				//v4adapt4 skin_weights(face->mWeights);
+
+				LLVector2* newCoord = NULL;
+
+				if (applyTexCoord)
+				{
+					newCoord = new LLVector2[face->mNumVertices];
+					LLVector3* newPos = new LLVector3[face->mNumVertices];
+					LLVector3* newNormal = new LLVector3[face->mNumVertices];
+					for (S32 i = 0; i < face->mNumVertices; i++)
+					{
+						newPos[i] = verts[i];
+						newNormal[i] = norms[i];
+						newCoord[i] = face->mTexCoords[i];
+					}
+					transformTexCoord(face->mNumVertices, newCoord, newPos, newNormal, obj->getTE(face_num), obj->getScale());
+					delete[] newPos;
+					delete[] newNormal;
+				}
+
+
 				for (S32 i = 0; i < face->mNumVertices; i++)
 				{
-					newPos[i] = verts[i];
-					newNormal[i] = norms[i];
-					newCoord[i] = face->mTexCoords[i];
+					LLVector3 v = verts[i];
+					LLVector3 n = norms[i];
+					//LLVector4 w = skin_weights[i];
+
+					// If the object is rigged mesh, apply bind shape matrices to
+					// vertex positions and normals
+					if (export_rigged_mesh && obj_is_rigged_mesh)
+					{
+						v = v * bind_shape_mtx;
+						n = n * bind_shape_normal_mtx;
+						n.normalize();
+					}
+
+					position_data.push_back(v.mV[VX]);
+					position_data.push_back(v.mV[VY]);
+					position_data.push_back(v.mV[VZ]);
+
+					normal_data.push_back(n.mV[VX]);
+					normal_data.push_back(n.mV[VY]);
+					normal_data.push_back(n.mV[VZ]);
+
+					const LLVector2 uv = applyTexCoord ? newCoord[i] : face->mTexCoords[i];
+
+					uv_data.push_back(uv.mV[VX]);
+					uv_data.push_back(uv.mV[VY]);
 				}
-				transformTexCoord(face->mNumVertices, newCoord, newPos, newNormal, obj->getTE(face_num), obj->getScale());
-				delete[] newPos;
-				delete[] newNormal;
-			}
 
-
-			for (S32 i=0; i < face->mNumVertices; i++)
-			{
-				LLVector3 v = verts[i];
-				LLVector3 n = norms[i];
-				//LLVector4 w = skin_weights[i];
-
-				// If the object is rigged mesh, apply bind shape matrices to
-				// vertex positions and normals
-				if (export_rigged_mesh && obj_is_rigged_mesh)
+				if (applyTexCoord)
 				{
-					v = v * bind_shape_mtx;
-					n = n * bind_shape_normal_mtx;
-					n.normalize();
+					delete[] newCoord;
 				}
-
-				position_data.push_back(v.mV[VX]);
-				position_data.push_back(v.mV[VY]);
-				position_data.push_back(v.mV[VZ]);
-
-				normal_data.push_back(n.mV[VX]);
-				normal_data.push_back(n.mV[VY]);
-				normal_data.push_back(n.mV[VZ]);
-
-				const LLVector2 uv = applyTexCoord ? newCoord[i] : face->mTexCoords[i];
-
-				uv_data.push_back(uv.mV[VX]);
-				uv_data.push_back(uv.mV[VY]);
-			}
-
-			if (applyTexCoord)
-			{
-				delete[] newCoord;
 			}
 		}
 
@@ -1309,29 +1450,41 @@ bool DAESaver::saveDAE(std::string filename)
 		}
 
 		material_list_t objMaterials;
-		getMaterials(obj, &objMaterials);
 
 		// Add triangles
 		int_list_t faces;
-		if (export_consolidate_materials)
+		if (avatar)
 		{
-			for (const auto& objMaterial : objMaterials)
-			{
-				getFacesWithMaterial(obj, objMaterial, &faces);
-				std::string matName = objMaterial.name;
-				addPolygons(mesh, geom_id.c_str(), (matName + "-material").c_str(), obj, &faces);
-			}
+			addPolygons(mesh, geom_id.c_str(), "TODO", avatar);
 		}
 		else
 		{
-			S32 mat_nr = 0;
-			for (S32 face_num = 0; face_num < num_faces; face_num++)
+			getMaterials(obj, &objMaterials);
+
+			if (export_consolidate_materials)
 			{
-				if (skipFace(obj->getTE(face_num)))
-					continue;
-				faces.push_back(face_num);
-				std::string matName = objMaterials[mat_nr++].name;
-				addPolygons(mesh, geom_id.c_str(), (matName + "-material").c_str(), obj, &faces);
+				for (const auto& objMaterial : objMaterials)
+				{
+					int_list_t material_faces;
+					getFacesWithMaterial(obj, objMaterial, &material_faces);
+					std::string matName = objMaterial.name;
+					addPolygons(mesh, geom_id.c_str(), (matName + "-material").c_str(), obj, &material_faces);
+					for (int face : material_faces)
+						faces.push_back(face);
+				}
+			}
+			else
+			{
+				S32 num_faces = obj->getVolume()->getNumVolumeFaces();
+				S32 mat_nr = 0;
+				for (S32 face_num = 0; face_num < num_faces; face_num++)
+				{
+					if (skipFace(obj->getTE(face_num)))
+						continue;
+					faces.push_back(face_num);
+					std::string matName = objMaterials[mat_nr++].name;
+					addPolygons(mesh, geom_id.c_str(), (matName + "-material").c_str(), obj, &faces);
+				}
 			}
 		}
 
@@ -1426,10 +1579,18 @@ bool DAESaver::saveDAE(std::string filename)
 			else
 			{
 				// Use world space
-				node_xform_mtx.initAll(obj->getScale(), obj->getRenderRotation(), obj->getRenderPosition());
+				if (avatar)
+				{
+					// Avatar TRS is just garbage data
+					node_xform_mtx.setIdentity();
+				}
+				else
+				{
+					node_xform_mtx.initAll(obj->getScale(), obj->getRenderRotation(), obj->getRenderPosition());
 
-				// Apply root world inverse matrix to get relative position/rotation
-				node_xform_mtx *= mRootWorldInvMatrix;
+					// Apply root world inverse matrix to get relative position/rotation
+					node_xform_mtx *= mRootWorldInvMatrix;
+				}
 			}
 		}
 
@@ -1602,7 +1763,8 @@ void DAESaver::generateImagesSection(daeElement* images)
 		daeElement* image = images->add("image");
 		image->setAttribute("id", colladaName.c_str());
 		image->setAttribute("name", colladaName.c_str());
-		image->add("init_from")->setCharData(LLURI::escape(name + '.' + mImageFormat));
+		//image->add("init_from")->setCharData(LLURI::escape(name + '.' + mImageFormat));
+		image->add("init_from")->setCharData(name + '.' + mImageFormat);
 	}
 }
 

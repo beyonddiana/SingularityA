@@ -28,6 +28,8 @@
 #include <dom/domElements.h>
 #include "lltextureentry.h"
 #include "lljoint.h"
+#include "llmath.h"
+#include "llvoavatar.h"
 
 class LLViewerObject;
 
@@ -43,6 +45,19 @@ public:
 		LLColor4 color;
 		std::string name;
 
+		/// <summary>
+		/// Returns true if difference between colors' RGB values are all (slightly) less than 1/256.
+		/// Alpha value is ignored.
+		/// </summary>
+		static bool colorsMatchRGB(const LLColor4 a, const LLColor4 b)
+		{
+			const float threshold = 0.0039; // Slightly less than 1/256
+			return
+				abs(a[0] - b[0]) < threshold &&
+				abs(a[1] - b[1]) < threshold &&
+				abs(a[2] - b[2]) < threshold;
+		}
+
 		bool matches(LLTextureEntry* te) const
 		{
 			auto mat = te->getMaterialParams();
@@ -50,7 +65,7 @@ public:
 				(colorID == te->getID()) &&
 				(!mat || normalID == mat->getNormalID()) &&
 				(!mat || specularID == mat->getSpecularID()) &&
-				(color == te->getColor());
+				colorsMatchRGB(color, te->getColor());
 		}
 
 		bool operator== (const MaterialInfo& rhs) const
@@ -59,7 +74,7 @@ public:
 				(colorID == rhs.colorID) &&
 				(normalID == rhs.normalID) &&
 				(specularID == rhs.specularID) &&
-				(color == rhs.color) &&
+				colorsMatchRGB(color, rhs.color) &&
 				(name == rhs.name);
 		}
 
@@ -96,6 +111,7 @@ private:
 	void addSource(daeElement* parent, const char* src_id, const char* param_name, const std::vector<std::string> &vals);
 	void append(daeTArray<domFloat>& arr, const LLMatrix4& matrix);
 	void addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLViewerObject* obj, int_list_t* faces_to_include);
+	void addPolygons(daeElement* mesh, const char* geomID, const char* materialID, LLVOAvatar* avatar);
 	void addJointsAndWeights(daeElement* skin, const char* parent_id, LLViewerObject* obj, int_list_t* faces_to_include);
 	void addJointNodes(daeElement* parent, LLJoint* root, LLVector3 parent_scale = LLVector3::all_one);
 	bool skipFace(LLTextureEntry *te);

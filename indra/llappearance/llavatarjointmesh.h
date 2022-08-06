@@ -63,6 +63,7 @@ class LLAvatarJointMesh : public virtual LLAvatarJoint
 {
 protected:
 	friend class WavefrontSaver;
+	friend class DAESaver;
 	LLColor4					mColor;			// color value
 // 	LLColor4					mSpecular;		// specular color (always white for now)
 	F32							mShiny;			// shiny value
