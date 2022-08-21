@@ -100,8 +100,12 @@
       <on_click function="Object.SaveAsOBJ" />
       <on_enable function="Object.EnableExport" />
     </menu_item_call>
-    <menu_item_call label="Save DAE..." mouse_opaque="true" name="Save DAE...">
+    <!--<menu_item_call label="Save DAE..." mouse_opaque="true" name="Save DAE...">
       <on_click function="Object.SaveAsDAE" />
+      <on_enable function="Object.EnableExport" />
+    </menu_item_call>-->
+    <menu_item_call label="Save SLXP..." mouse_opaque="true" name="Save SLXP...">
+      <on_click function="Object.SaveAsSLXP" />
       <on_enable function="Object.EnableExport" />
     </menu_item_call>
 	</pie_menu>

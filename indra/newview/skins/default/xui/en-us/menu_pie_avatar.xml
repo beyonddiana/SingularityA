@@ -57,8 +57,12 @@
 			<menu_item_call enabled="true" label="Derender" mouse_opaque="true" name="Derender">
 				<on_click function="Object.DERENDER" />
 			</menu_item_call>
-      <menu_item_call label="Save DAE..." mouse_opaque="true" name="Save DAE...">
+      <!--<menu_item_call label="Save DAE..." mouse_opaque="true" name="Save DAE...">
         <on_click function="Avatar.SaveAsDAE" />
+        <on_enable function="Avatar.EnableExport" />
+      </menu_item_call>-->
+      <menu_item_call label="Save SLXP..." mouse_opaque="true" name="Save SLXP...">
+        <on_click function="Avatar.SaveAsSLXP" />
         <on_enable function="Avatar.EnableExport" />
       </menu_item_call>
 		</pie_menu>

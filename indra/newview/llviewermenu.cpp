@@ -197,6 +197,7 @@ class AIHTTPView;
 
 void add_wave_listeners();
 void add_dae_listeners();
+void add_slxp_listeners();
 void add_radar_listeners();
 //extern BOOL	gHideSelectedObjects;
 //extern BOOL gAllowSelectAvatar;
@@ -10245,6 +10246,7 @@ void initialize_menus()
 	addMenu(new LLOHGOD(), "Object.EnableExplode");
 	add_wave_listeners();
 	add_dae_listeners();
+	add_slxp_listeners();
 	addMenu(new LLObjectFollow(), "Object.Follow");
 	// </edit>
 	addMenu(new LLObjectMute(), "Object.Mute");

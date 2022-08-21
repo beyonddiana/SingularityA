@@ -49,6 +49,7 @@ include(WinManifest)
 include(ZLIB)
 include(URIPARSER)
 include(TKO)
+include(SLXP)
 
 if(USE_FMODSTUDIO)
   include_directories(${FMODSTUDIO_INCLUDE_DIR})
@@ -82,6 +83,7 @@ include_directories(
     ${OPENAL_LIB_INCLUDE_DIRS}
     ${LLAPPEARANCE_INCLUDE_DIRS}
     ${TKO_INCLUDE_DIRS}
+    ${SLXP_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}
     )
 
@@ -100,6 +102,7 @@ set(viewer_SOURCE_FILES
     awavefront.cpp
     chatbar_as_cmdline.cpp
     daeexport.cpp
+    slxpexport.cpp
     floaterao.cpp
     floaterlocalassetbrowse.cpp
     generichandlers.cpp
@@ -647,6 +650,7 @@ set(viewer_HEADER_FILES
     awavefront.h
     chatbar_as_cmdline.h
     daeexport.h
+    slxpexport.h
     floaterao.h
     floaterlocalassetbrowse.h
     generichandlers.h
@@ -1712,6 +1716,7 @@ target_link_libraries(${VIEWER_BINARY_NAME}
     nlohmann_json::nlohmann_json
     fmt::fmt
     ${TKO_LIBRARIES}
+    ${SLXP_LIBRARIES}
     )
 
 if (LINUX)

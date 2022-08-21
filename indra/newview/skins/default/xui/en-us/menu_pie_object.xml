@@ -58,6 +58,10 @@
 					<on_click function="Object.SaveAsDAE" />
 					<on_enable function="Object.EnableExport" />
 				</menu_item_call>
+        <menu_item_call label="SLXP..." mouse_opaque="true" name="Save SLXP...">
+          <on_click function="Object.SaveAsSLXP" />
+          <on_enable function="Object.EnableExport" />
+        </menu_item_call>
 			</pie_menu>
 			<pie_menu label="Tools" name="Rate Menu">
 				<menu_item_call enabled="false" label="Destroy" mouse_opaque="true" name="Destroy">

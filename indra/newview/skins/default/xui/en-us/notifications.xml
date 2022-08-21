@@ -11603,6 +11603,34 @@ Object exported. Some textures could not be saved due to: [REASON]
 Export successful.
   </notification>
 
+  <notification
+  icon="notifytip.tga"
+  name="SLXPExportCancelled"
+  type="alertmodal">
+    SLXP export was cancelled.
+  </notification>
+  
+  <notification
+  icon="alertmodal.tga"
+  name="SLXPExportWarning"
+  type="alertmodal">
+    SLXP export warning: [REASON]
+  </notification>
+  
+  <notification
+  icon="alertmodal.tga"
+  name="SLXPExportError"
+  type="alertmodal">
+    SLXP export error: [REASON]
+  </notification>
+
+  <notification
+   icon="notifytip.tga"
+   name="SLXPExportSuccessful"
+   type="notifytip">
+    SLXP export successful.
+  </notification>
+
 <notification
    icon="alertmodal.tga"
    name="ConfirmAbortBackup"

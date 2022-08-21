@@ -128,6 +128,10 @@
         <on_click function="Avatar.SaveAsDAE" />
         <on_enable function="Avatar.EnableExport" />
       </menu_item_call>
+      <menu_item_call label="SLXP..." mouse_opaque="true" name="Save SLXP...">
+        <on_click function="Avatar.SaveAsSLXP" />
+        <on_enable function="Avatar.EnableExport" />
+      </menu_item_call>
     </pie_menu>
   </pie_menu>
   <menu_item_call enabled="true" label="Appearance..." name="Appearance...">
