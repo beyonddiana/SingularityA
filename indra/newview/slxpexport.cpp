@@ -159,9 +159,9 @@ void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
                     SLXPJoint slxp_joint(joint->getName(), joint->getJointNum());
                     if (joint->getParent())
                         slxp_joint.ParentId = joint->getParent()->getJointNum();
-                    Copy(obj->getPosition(), slxp_joint.LocalPosition);
-                    Copy(obj->getRotation(), slxp_joint.LocalRotation);
-                    Copy(obj->getScale(), slxp_joint.LocalScale);
+                    Copy(joint->getPosition(), slxp_joint.LocalPosition);
+                    Copy(joint->getRotation(), slxp_joint.LocalRotation);
+                    Copy(joint->getScale(), slxp_joint.LocalScale);
                     document.Collection.Joints.push_back(slxp_joint);
                 }
                 continue;
