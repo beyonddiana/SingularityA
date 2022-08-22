@@ -192,6 +192,7 @@ void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
                 const auto& bind_shape_mtx = skin_info->mBindShapeMatrix;
                 slxp_obj.setBindShapeMatrix(bind_shape_mtx.mMatrix);
             }
+
             auto vol = obj->getVolume();
             auto& faces = vol->getVolumeFaces();
             for (auto& face : faces)
