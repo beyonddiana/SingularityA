@@ -172,6 +172,15 @@ void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
             if (parent)
                 slxp_obj.ParentId = parent->getLocalID();
 
+            {
+                auto avatar = obj->getAvatar();
+                if (avatar)
+                {
+                    auto joint_attachment = avatar->getTargetAttachmentPoint(obj);
+                    slxp_obj.AttachmentJointId = joint_attachment->getJointNum();
+                }
+            }
+
             if (obj->isRiggedMesh())
             {
                 // Cache the object's bind shape matrix to be applied to be applied to vertices later.

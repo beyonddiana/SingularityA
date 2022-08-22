@@ -319,12 +319,12 @@ private:
     bool _HasBindShapeMatrix;
 public:
     std::vector<SLXPFace> Faces;
-    
     float BindShapeMatrix[4][4] = { };
-
+    int AttachmentJointId;
     SLXPObject(std::string name, unsigned int id, unsigned int parent_id = 0):
         SLXPObjectBaseMixin(name, id, parent_id),
-        _HasBindShapeMatrix(false)
+        _HasBindShapeMatrix(false),
+        AttachmentJointId(0)
     { }
 
     void setBindShapeMatrix(const matrix_4x4_t mtx) {
@@ -360,6 +360,8 @@ public:
 
         if (_HasBindShapeMatrix)
             os << "\"BindShapeMatrix\": " << arrayToJSON((const float*)BindShapeMatrix, 4, 4) << "," << std::endl;
+
+        os << "\"AttachmentJointId\": " << AttachmentJointId << "," << std::endl;
 
         os << "\"Faces\": " << vectorToJSON(Faces) << std::endl
             << "}";
