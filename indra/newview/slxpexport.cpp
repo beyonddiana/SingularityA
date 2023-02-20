@@ -190,7 +190,12 @@ void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
                 const auto skin_info = obj_vov->getSkinInfo();
 
                 const auto& bind_shape_mtx = skin_info->mBindShapeMatrix;
+                const auto& inv_bind_matrices = skin_info->mInvBindMatrix;
+
                 slxp_obj.setBindShapeMatrix(bind_shape_mtx.mMatrix);
+                slxp_obj.clearInverseBindMatrices();
+                for (const auto& inv_bind_mtx : inv_bind_matrices)
+                    slxp_obj.addInverseBindMatrix(inv_bind_mtx.mMatrix);
             }
 
             auto vol = obj->getVolume();

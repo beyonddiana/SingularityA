@@ -6,6 +6,7 @@
 #include <ostream>
 #include <type_traits>
 #include <sstream>
+#include <array>
 
 struct BinarySerializable {
     virtual std::ostream& serialize(std::ostream& os) const = 0;
@@ -57,14 +58,14 @@ std::ostream& serialize_vector(std::ostream& os, const std::vector<T>& values) {
     for (auto& value : values)
     {
         auto serializable = (const BinarySerializable*)&value;
-        if(serializable)
+        if (serializable)
             serializable->serialize(os);
     }
     return os;
 }
 
 typedef std::vector<unsigned short> Indices_list_t;
-typedef float matrix_4x4_t[4][4];
+typedef std::array<std::array<float, 4>, 4> matrix_4x4_t;
 
 std::string vectorToJSON(const Indices_list_t values) {
     std::ostringstream os;
@@ -120,10 +121,33 @@ std::string vectorToJSON(std::vector<T> values) {
     for (size_t i = 0; i < values.size(); i++)
     {
         auto& value = values[i];
-        auto serializable = (const JSONSerializable *)(&value);
+        auto serializable = (const JSONSerializable*)(&value);
         if (serializable)
             os << serializable->toJSON();
         if (i != (values.size() - 1))
+            os << ",";
+    }
+    os << "]";
+    return os.str();
+}
+
+template <size_t len>
+std::string arrayToJSON(const std::array<float, len>& values)
+{
+    std::ostringstream os;
+    arrayToJSON(os, values, len);
+    return os.str();
+}
+
+template <size_t len0, size_t len1>
+std::string arrayToJSON(const std::array<std::array<float, len0>, len1>& values)
+{
+    std::ostringstream os;
+    os << "[";
+    for (size_t i = 0; i < len0; i++)
+    {
+        arrayToJSON(os, &values[len1 * i], len1);
+        if (i != (len0 - 1))
             os << ",";
     }
     os << "]";
@@ -235,7 +259,7 @@ struct WithName {
 
 struct WithId {
     unsigned int Id;
-    WithId(unsigned int id):
+    WithId(unsigned int id) :
         Id(id)
     { }
 };
@@ -283,13 +307,13 @@ struct SLXPFace : public BinarySerializable, public JSONSerializable {
     }
 };
 
-struct SLXPObjectBaseMixin:
+struct SLXPObjectBaseMixin :
     public WithName,
     public WithId,
     public WithParentId,
     public WithTRS
 {
-    SLXPObjectBaseMixin(std::string name, unsigned int id, unsigned int parent_id = 0):
+    SLXPObjectBaseMixin(std::string name, unsigned int id, unsigned int parent_id = 0) :
         WithName(name),
         WithId(id),
         WithParentId(parent_id)
@@ -319,17 +343,23 @@ private:
     bool _HasBindShapeMatrix;
 public:
     std::vector<SLXPFace> Faces;
-    float BindShapeMatrix[4][4] = { };
+    matrix_4x4_t BindShapeMatrix;
+    std::vector<matrix_4x4_t> InverseBindMatrices;
     int AttachmentJointId;
-    SLXPObject(std::string name, unsigned int id, unsigned int parent_id = 0):
+    SLXPObject(std::string name, unsigned int id, unsigned int parent_id = 0) :
         SLXPObjectBaseMixin(name, id, parent_id),
         _HasBindShapeMatrix(false),
         AttachmentJointId(0)
-    { }
+    {
+    }
 
-    void setBindShapeMatrix(const matrix_4x4_t mtx) {
-        auto src = &mtx[0][0];
-        std::copy(src, src + 16, &BindShapeMatrix[0][0]);
+    void setBindShapeMatrix(const std::array<std::array<float, 4>, 4> mtx) {
+        BindShapeMatrix = mtx;
+        _HasBindShapeMatrix = true;
+    }
+
+    void setBindShapeMatrix(const float* mtx) {
+        std::copy(mtx, mtx + 16, &BindShapeMatrix[0][0]);
         _HasBindShapeMatrix = true;
     }
 
@@ -343,6 +373,17 @@ public:
     bool hasBindShapeMatrix() const
     {
         return _HasBindShapeMatrix;
+    }
+
+    void clearInverseBindMatrices()
+    {
+        InverseBindMatrices.clear();
+    }
+
+    void addInverseBindMatrix(const std::array<std::array<float, 4>, 4> mtx)
+    {
+
+        InverseBindMatrices.push_back(mtx);
     }
 
     virtual std::ostream& serialize(std::ostream& os) const override
@@ -359,7 +400,21 @@ public:
             << SLXPObjectBaseMixin::toJSON() << "," << std::endl;
 
         if (_HasBindShapeMatrix)
-            os << "\"BindShapeMatrix\": " << arrayToJSON((const float*)BindShapeMatrix, 4, 4) << "," << std::endl;
+            os << "\"BindShapeMatrix\": " << arrayToJSON(BindShapeMatrix) << "," << std::endl;
+
+        if (InverseBindMatrices.size() > 0)
+        {
+            os << "\"InverseBindMatrices\": [";
+            const size_t size = InverseBindMatrices.size();
+            for (size_t i = 0; i < size; i++)
+            {
+                const auto& inv_bind_mtx = InverseBindMatrices[i];
+                os << arrayToJSON(inv_bind_mtx);
+                if (i != (size - 1))
+                    os << "," << std::endl;
+            }
+            os << "]," << std::endl;
+        }
 
         os << "\"AttachmentJointId\": " << AttachmentJointId << "," << std::endl;
 
