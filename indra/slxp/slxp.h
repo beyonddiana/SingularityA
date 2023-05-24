@@ -93,6 +93,49 @@ inline std::ostream& arrayToJSON(std::ostream& os, const float* values, const si
     return os;
 }
 
+template <typename T, size_t len>
+inline std::ostream& arrayToJSON(std::ostream& os, const std::array<T, len> values)
+{
+    os << "[";
+    for (size_t i = 0; i < len; i++)
+    {
+        os << values[i];
+        if (i != (len - 1))
+            os << ",";
+    }
+    os << "]";
+    return os;
+}
+
+template <typename T, size_t len>
+inline std::string arrayToJSON(const std::array<T, len> values)
+{
+    std::ostringstream os;
+    arrayToJSON(os, values);
+    return os.str();
+}
+
+template <typename T, size_t len0, size_t len1>
+inline std::ostream& arrayToJSON(std::ostream& os, const std::array<std::array<T, len0>, len1>& values)
+{
+    os << "[";
+    for (size_t i = 0; i < len0; i++)
+    {
+        arrayToJSON(os, values[i]);
+        if (i != (len0 - 1))
+            os << ",";
+    }
+    os << "]";
+    return os;
+}
+
+template <typename T, size_t len0, size_t len1>
+inline std::string arrayToJSON(const std::array<std::array<T, len0>, len1>& values) {
+    std::ostringstream os;
+    arrayToJSON(os, values);
+    return os.str();
+}
+
 std::string arrayToJSON(const float* values, const size_t len)
 {
     std::ostringstream os;
@@ -131,29 +174,6 @@ std::string vectorToJSON(std::vector<T> values) {
     return os.str();
 }
 
-template <size_t len>
-std::string arrayToJSON(const std::array<float, len>& values)
-{
-    std::ostringstream os;
-    arrayToJSON(os, values, len);
-    return os.str();
-}
-
-template <size_t len0, size_t len1>
-std::string arrayToJSON(const std::array<std::array<float, len0>, len1>& values)
-{
-    std::ostringstream os;
-    os << "[";
-    for (size_t i = 0; i < len0; i++)
-    {
-        arrayToJSON(os, &values[len1 * i], len1);
-        if (i != (len0 - 1))
-            os << ",";
-    }
-    os << "]";
-    return os.str();
-}
-
 // This is probably really slow and I don't caaaare
 inline float sanitize(float x)
 {
@@ -161,9 +181,9 @@ inline float sanitize(float x)
         if (std::isnan(x))
             return 0.f;
         else if (x > 0)
-            return 10e30;
+            return 10e30f;
         else
-            return -10e30;
+            return -10e30f;
     return x;
 }
 
@@ -228,6 +248,63 @@ struct Vec4 : public Vec3 {
 typedef std::vector<Vec2> Vec2_list_t;
 typedef std::vector<Vec3> Vec3_list_t;
 typedef std::vector<Vec4> Vec4_list_t;
+
+template <typename T>
+static constexpr T* begin(T& value) noexcept
+{
+    return &value;
+}
+
+template <typename T, ::std::size_t N>
+static constexpr typename ::std::remove_all_extents<T>::type*
+begin(T(&array)[N]) noexcept
+{
+    return begin(*array);
+}
+
+template <typename T, ::std::size_t N>
+static constexpr typename ::std::remove_all_extents<T>::type*
+begin(std::array<T, N>& array_) noexcept
+{
+    return &array_[0];
+}
+
+template <typename T, ::std::size_t N, ::std::size_t M>
+static constexpr typename ::std::remove_all_extents<T>::type*
+begin(std::array<std::array<T, M>, N>& array_) noexcept
+{
+    return begin(array_[0]);
+}
+
+
+template <typename T>
+static constexpr T* end(T& value) noexcept
+{
+    return &value + 1;
+}
+
+template <typename T, ::std::size_t N>
+static constexpr typename ::std::remove_all_extents<T>::type*
+end(T(&array)[N]) noexcept
+{
+    return end(array[N - 1]);
+}
+
+template <typename T, ::std::size_t N>
+std::array<T, N> toArray(const T(&array)[N]) noexcept
+{
+    std::array<T, N> rval;
+    std::copy(begin(array), end(array), begin(rval));
+    return rval;
+}
+
+template <typename T, ::std::size_t N, ::std::size_t M>
+std::array<std::array<T, M>, N> toArray(const T(&array)[N][M]) noexcept
+{
+    std::array<std::array<T, M>, N> rval;
+    std::copy(begin(array), end(array), begin(rval));
+    return rval;
+}
 
 struct WithTRS : public BinarySerializable, public JSONSerializable {
     Vec3 LocalPosition;
@@ -358,8 +435,8 @@ public:
         _HasBindShapeMatrix = true;
     }
 
-    void setBindShapeMatrix(const float* mtx) {
-        std::copy(mtx, mtx + 16, &BindShapeMatrix[0][0]);
+    void setBindShapeMatrix(const float(&mtx)[4][4]) {
+        BindShapeMatrix = toArray(mtx);
         _HasBindShapeMatrix = true;
     }
 
@@ -382,8 +459,12 @@ public:
 
     void addInverseBindMatrix(const std::array<std::array<float, 4>, 4> mtx)
     {
-
         InverseBindMatrices.push_back(mtx);
+    }
+
+    void addInverseBindMatrix(const float(&mtx)[4][4])
+    {
+        InverseBindMatrices.push_back(toArray(mtx));
     }
 
     virtual std::ostream& serialize(std::ostream& os) const override
@@ -409,7 +490,7 @@ public:
             for (size_t i = 0; i < size; i++)
             {
                 const auto& inv_bind_mtx = InverseBindMatrices[i];
-                os << arrayToJSON(inv_bind_mtx);
+                arrayToJSON(os, inv_bind_mtx);
                 if (i != (size - 1))
                     os << "," << std::endl;
             }
