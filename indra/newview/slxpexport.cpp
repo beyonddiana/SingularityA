@@ -145,7 +145,7 @@ void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
     for (auto& entry : export_data.Objects)
     {
         auto& name = entry.Name;
-        auto& obj = entry.Value;
+        const auto& obj = entry.Value;
         try {
 
             if (entry.Value->isAvatar())
@@ -188,26 +188,35 @@ void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
 
                 // Copy skin info with dereference
                 const auto skin_info = obj_vov->getSkinInfo();
-
+                const auto& joint_nums = skin_info->mJointNums;
                 const auto& bind_shape_mtx = skin_info->mBindShapeMatrix;
                 const auto& inv_bind_matrices = skin_info->mInvBindMatrix;
-
+                for (const auto& joint_num : joint_nums)
+                    slxp_obj.addJointNumber(joint_num);
                 slxp_obj.setBindShapeMatrix(bind_shape_mtx.mMatrix);
                 slxp_obj.clearInverseBindMatrices();
                 for (const auto& inv_bind_mtx : inv_bind_matrices)
                     slxp_obj.addInverseBindMatrix(inv_bind_mtx.mMatrix);
             }
 
-            auto vol = obj->getVolume();
-            auto& faces = vol->getVolumeFaces();
-            for (auto& face : faces)
+            const auto& vol = obj->getVolume();
+            const auto& faces = vol->getVolumeFaces();
+            //for (auto& face : faces)
+            for (auto i = 0; i < faces.size(); i++)
             {
+                auto& face = faces[i];
                 SLXPFace slxp_face;
                 Copy(face.mPositions, face.mNumVertices, slxp_face.Positions);
                 Copy(face.mNormals, face.mNumVertices, slxp_face.Normals);
                 if (face.mTangents)
                     Copy(face.mTangents, face.mNumVertices, slxp_face.Tangents);
                 Copy(face.mTexCoords, face.mNumVertices, slxp_face.TexCoords);
+                const auto& tex_entry = *obj->getTE((U8)i);
+                slxp_face.TexCoordsOffset.x = tex_entry.mOffsetS;
+                slxp_face.TexCoordsOffset.y = tex_entry.mOffsetT;
+                slxp_face.TexCoordsScale.x = tex_entry.mScaleS;
+                slxp_face.TexCoordsScale.y = tex_entry.mScaleT;
+                slxp_face.TexCoordsRotation = tex_entry.mRotation;
                 if (face.mWeights)
                     Copy(face.mWeights, face.mNumVertices, slxp_face.Weights);
                 Copy(face.mIndices, face.mNumIndices, slxp_face.Indices);

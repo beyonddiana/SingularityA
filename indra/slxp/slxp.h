@@ -355,6 +355,9 @@ struct SLXPFace : public BinarySerializable, public JSONSerializable {
     Vec3_list_t Normals;
     Vec3_list_t Tangents;
     Vec2_list_t TexCoords;
+    Vec2 TexCoordsOffset;
+    Vec2 TexCoordsScale;
+    float TexCoordsRotation;
     Vec4_list_t Weights;
     Indices_list_t Indices;
 
@@ -364,6 +367,9 @@ struct SLXPFace : public BinarySerializable, public JSONSerializable {
         serialize_vector(os, Normals);
         serialize_vector(os, Tangents);
         serialize_vector(os, TexCoords);
+        unsafe_write(os, TexCoordsOffset);
+        unsafe_write(os, TexCoordsScale);
+        unsafe_write(os, TexCoordsRotation);
         serialize_vector(os, Weights);
         serialize_vector(os, Indices);
         return os;
@@ -377,6 +383,9 @@ struct SLXPFace : public BinarySerializable, public JSONSerializable {
             << "\"Normals\": " << vectorToJSON(Normals) << "," << std::endl
             << "\"Tangents\": " << vectorToJSON(Tangents) << "," << std::endl
             << "\"TexCoords\": " << vectorToJSON(TexCoords) << "," << std::endl
+            << "\"TexCoordOffset\": " << TexCoordsOffset.toJSON() << "," << std::endl
+            << "\"TexCoordScale\": " << TexCoordsScale.toJSON() << "," << std::endl
+            << "\"TexCoordsRotation\": " << TexCoordsRotation << "," << std::endl
             << "\"Weights\": " << vectorToJSON(Weights) << "," << std::endl
             << "\"Indices\": " << vectorToJSON(Indices) << std::endl
             << "}";
@@ -422,6 +431,7 @@ public:
     std::vector<SLXPFace> Faces;
     matrix_4x4_t BindShapeMatrix;
     std::vector<matrix_4x4_t> InverseBindMatrices;
+    std::vector<int> JointNumbers;
     int AttachmentJointId;
     SLXPObject(std::string name, unsigned int id, unsigned int parent_id = 0) :
         SLXPObjectBaseMixin(name, id, parent_id),
@@ -467,6 +477,11 @@ public:
         InverseBindMatrices.push_back(toArray(mtx));
     }
 
+    void addJointNumber(const int joint_number)
+    {
+        JointNumbers.push_back(joint_number);
+    }
+
     virtual std::ostream& serialize(std::ostream& os) const override
     {
         SLXPObjectBaseMixin::serialize(os);
@@ -479,6 +494,20 @@ public:
         std::ostringstream os;
         os << "{" << std::endl
             << SLXPObjectBaseMixin::toJSON() << "," << std::endl;
+
+        if (JointNumbers.size() > 0)
+        {
+            os << "\"JointNumbers\": [";
+            const size_t size = JointNumbers.size();
+            for (size_t i = 0; i < size; i++)
+            {
+                const auto& joint_number = JointNumbers[i];
+                os << joint_number;
+                if (i != (size - 1))
+                    os << ",";
+            }
+            os << "]," << std::endl;
+        }
 
         if (_HasBindShapeMatrix)
             os << "\"BindShapeMatrix\": " << arrayToJSON(BindShapeMatrix) << "," << std::endl;
