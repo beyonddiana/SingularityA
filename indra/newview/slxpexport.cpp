@@ -1,4 +1,5 @@
 #include "slxpexport.h"
+#include "slxp.h"
 
 // library includes
 #include "aifilepicker.h"
@@ -14,6 +15,8 @@
 #include "llviewerinventory.h"
 #include "llviewertexturelist.h"
 #include "llvovolume.h"
+#include "llagent.h"
+#include "llviewerregion.h"
 
 // menu includes
 #include "llevent.h"
@@ -39,7 +42,6 @@
 //Typedefs used in other files, using here for consistency.
 typedef std::vector<LLAvatarJoint*> avatar_joint_list_t;
 typedef LLMemberListener<LLView> view_listener_t;
-
 
 inline void Copy(LLVector3 src, Vec3& dst)
 {
@@ -118,7 +120,11 @@ void AddJointsPreorder(std::vector<LLJoint*>& joints, LLJoint* joint)
         AddJointsPreorder(joints, j);
 }
 
-void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
+// static
+ExportData SLXPExport::gExportData = ExportData("Untitled");
+
+// static
+void SLXPExport::HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
 {
     if (file_picker->isCanceled())
     {
@@ -168,16 +174,38 @@ void HandleFilePicker(AIFilePicker* file_picker, ExportData export_data)
             }
 
             SLXPObject slxp_obj(name, obj->getLocalID());
+            auto avatar = obj->getAvatar();
+            if (avatar)
+            {
+                auto joint_attachment = avatar->getTargetAttachmentPoint(obj);
+                slxp_obj.AttachmentJointId = joint_attachment->getJointNum();
+            }
+
+            slxp_obj.ParentId = 0;
+            slxp_obj.LinkNumber = 0;
+
             auto parent = (LLViewerObject*)obj->getParent();
             if (parent)
-                slxp_obj.ParentId = parent->getLocalID();
-
             {
-                auto avatar = obj->getAvatar();
-                if (avatar)
+                slxp_obj.ParentId = parent->getLocalID();
+                // This is not very efficient, but I don't know any better way to handle it...
+                // Special case where parent is avatar: sibling index is attachment index, but we want to start at 0 or 1
+                if (parent == avatar)
                 {
-                    auto joint_attachment = avatar->getTargetAttachmentPoint(obj);
-                    slxp_obj.AttachmentJointId = joint_attachment->getJointNum();
+                    // If we have any linked objects (children), then start counting at 1 for root
+                    if (obj->getChildren().size() > 0)
+                        slxp_obj.LinkNumber = 1;
+                }
+                else
+                {
+                    auto& siblings = parent->getChildren();
+                    auto it = std::find(siblings.cbegin(), siblings.cend(), obj);
+                    if (it != siblings.cend())
+                    {
+                        // Root in link set with size > 1 has index 1, children continue 2, 3, 4...
+                        auto link_number = (size_t)std::distance(siblings.cbegin(), it) + 2;
+                        slxp_obj.LinkNumber = (int)link_number;
+                    }
                 }
             }
 
@@ -276,7 +304,34 @@ void GetSelectionObjects(LLObjectSelectionHandle selection, std::vector<object_e
     }
 }
 
-void GetAvatarAttachments(LLVOAvatar* avatar, std::vector<object_entry_t>& objects)
+void RequestObjectPropertiesFamily(LLViewerObject* object)
+{
+    LLMessageSystem* msg = gMessageSystem;
+    LLViewerRegion* region = object->getRegion();
+    {
+        msg->newMessageFast(_PREHASH_ObjectSelect);
+        msg->nextBlockFast(_PREHASH_AgentData);
+        msg->addUUIDFast(_PREHASH_AgentID, gAgent.getID());
+        msg->addUUIDFast(_PREHASH_SessionID, gAgent.getSessionID());
+        msg->nextBlockFast(_PREHASH_ObjectData);
+        msg->addU32Fast(_PREHASH_ObjectLocalID, object->getLocalID());
+        msg->sendReliable(region->getHost());
+    }
+    {
+        msg->newMessageFast(_PREHASH_ObjectDeselect);
+        msg->nextBlockFast(_PREHASH_AgentData);
+        msg->addUUIDFast(_PREHASH_AgentID, gAgent.getID());
+        msg->addUUIDFast(_PREHASH_SessionID, gAgent.getSessionID());
+        msg->nextBlockFast(_PREHASH_ObjectData);
+        msg->addU32Fast(_PREHASH_ObjectLocalID, object->getLocalID());
+        msg->sendReliable(region->getHost());
+    }
+
+
+    LL_INFOS() << "Sent data request for object " << object->getID() << LL_ENDL;
+}
+
+void RequestAvatarAttachments(LLVOAvatar* avatar)
 {
     for (auto& iter : avatar->mAttachedObjectsVector)
     {
@@ -288,35 +343,57 @@ void GetAvatarAttachments(LLVOAvatar* avatar, std::vector<object_entry_t>& objec
         // TODO: include HUD attachments and handle at import time, etc.
         if (object->isHUDAttachment())
             continue;
-
-        objects.push_back(object_entry_t(GetObjectName(object), object));
+        SLXPExport::gExportData.Objects.push_back(object_entry_t(GetObjectName(object), object));
+        SLXPExport::gExportData.PendingObjects[object->getID()] = SLXPExport::gExportData.Objects.size() - 1;
         auto& children = object->getChildren();
         for (auto& child : children)
         {
             if (!child || !child->getVolume())
                 continue;
-            objects.push_back(object_entry_t(GetObjectName(child), child));
+            SLXPExport::gExportData.Objects.push_back(object_entry_t(GetObjectName(child), child));
         }
+    }
+    // Send requests
+    for (const auto& it : SLXPExport::gExportData.PendingObjects)
+    {
+        auto object_entry = SLXPExport::gExportData.Objects[it.second];
+        RequestObjectPropertiesFamily(object_entry.Value);
     }
 }
 
-class SLXPSaveSelectedObjects final : public view_listener_t
+//static
+void SLXPExport::processObjectProperties(LLMessageSystem* msg, void** user_data)
 {
-    bool handleEvent(LLPointer<LLOldEvents::LLEvent> event, const LLSD& userdata)
+    if (SLXPExport::gExportData.PendingObjects.empty())
+        return;
+    S32 i;
+    S32 count = msg->getNumberOfBlocksFast(_PREHASH_ObjectData);
+    for (auto i = 0; i < count; i++)
     {
-        auto selection = GetSelection();
-        if (selection && selection->getFirstRootObject())
+        LLUUID object_id;
+        msg->getUUIDFast(_PREHASH_ObjectData, _PREHASH_ObjectID, object_id, i);
+        LL_INFOS() << "Received data response for object " << object_id << LL_ENDL;
+        auto& it = SLXPExport::gExportData.PendingObjects.find(object_id);
+        if (it != SLXPExport::gExportData.PendingObjects.end())
         {
-            auto root = selection->getFirstRootNode();
-            auto file_picker = AIFilePicker::create();
-            ExportData export_data(root->mName);
-            GetSelectionObjects(selection, export_data.Objects);
-            file_picker->open(root->mName + ".slxp");
-            file_picker->run(boost::bind(&HandleFilePicker, file_picker, export_data));
+            // Get the object entry's index in the objects vector
+            auto object_index = it->second;
+            // Get the object entry reference
+            auto& object_entry = SLXPExport::gExportData.Objects[object_index];
+            // Update the object name in the entry
+            msg->getStringFast(_PREHASH_ObjectData, _PREHASH_Name, object_entry.Name, i);
+            // Erase this object from the pending object's map
+            SLXPExport::gExportData.PendingObjects.erase(it);
+            // If there are no pending items remaining
+            if (SLXPExport::gExportData.PendingObjects.empty()) {
+                // Show the file picker
+                auto file_picker = AIFilePicker::create();
+                file_picker->open(SLXPExport::gExportData.Title + ".slxp");
+                file_picker->run(boost::bind(&SLXPExport::HandleFilePicker, file_picker, SLXPExport::gExportData));
+            }
         }
-        return true;
     }
-};
+}
 
 class SLXPSaveSelectedAvatar final : public view_listener_t
 {
@@ -327,17 +404,34 @@ class SLXPSaveSelectedAvatar final : public view_listener_t
         if (primary_object && primary_object->isAvatar())
         {
             auto avatar = (LLVOAvatar*)primary_object;
-            auto file_picker = AIFilePicker::create();
-            ExportData export_data(avatar->getFullname());
-
-            export_data.Objects.push_back(object_entry_t(avatar->getFullname(), avatar));
-            GetAvatarAttachments(avatar, export_data.Objects);
-            file_picker->open(avatar->getFullname() + ".slxp");
-            file_picker->run(boost::bind(&HandleFilePicker, file_picker, export_data));
+            SLXPExport::gExportData = ExportData(avatar->getFullname());
+            // TODO: handle the (legacy) avatar body mesh:
+            SLXPExport::gExportData.Objects.push_back(object_entry_t(avatar->getFullname(), avatar));
+            RequestAvatarAttachments(avatar);
         }
         return true;
     }
 };
+
+class SLXPSaveSelectedObjects final : public view_listener_t
+{
+    bool handleEvent(LLPointer<LLOldEvents::LLEvent> event, const LLSD& userdata)
+    {
+        auto selection = GetSelection();
+        if (selection && selection->getFirstRootObject())
+        {
+            auto root = selection->getFirstRootNode();
+            auto file_picker = AIFilePicker::create();
+            // Set our current export data
+            ExportData export_data(root->mName);
+            GetSelectionObjects(selection, export_data.Objects);
+            file_picker->open(root->mName + ".slxp");
+            file_picker->run(boost::bind(&SLXPExport::HandleFilePicker, file_picker, export_data));
+        }
+        return true;
+    }
+};
+
 
 void addMenu(view_listener_t* menu, const std::string& name);
 void add_slxp_listeners() // Called in llviewermenu with other addMenu calls, function linked against

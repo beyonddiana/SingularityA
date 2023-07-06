@@ -433,10 +433,13 @@ public:
     std::vector<matrix_4x4_t> InverseBindMatrices;
     std::vector<int> JointNumbers;
     int AttachmentJointId;
+    int LinkNumber;
     SLXPObject(std::string name, unsigned int id, unsigned int parent_id = 0) :
         SLXPObjectBaseMixin(name, id, parent_id),
         _HasBindShapeMatrix(false),
-        AttachmentJointId(0)
+        BindShapeMatrix(matrix_4x4_t()),
+        AttachmentJointId(0),
+        LinkNumber(0)
     {
     }
 
@@ -527,7 +530,7 @@ public:
         }
 
         os << "\"AttachmentJointId\": " << AttachmentJointId << "," << std::endl;
-
+        os << "\"LinkNumber\": " << LinkNumber << "," << std::endl;
         os << "\"Faces\": " << vectorToJSON(Faces) << std::endl
             << "}";
         return os.str();
